@@ -1,8 +1,12 @@
 
-# https://github.com/rgumbs/EDGE2/
-  
 library(tidyverse)
+library(devtools)
 source('scripts/functions_github.R')
+
+
+# load functions from github: https://github.com/rgumbs/EDGE2/
+source_url(url='https://raw.githubusercontent.com/rgumbs/EDGE2/main/EDGE.2.calc')
+source_url(url='https://raw.githubusercontent.com/rgumbs/EDGE2/main/GE.2.calc')
 
 
 # data
@@ -20,6 +24,8 @@ spp_pext <- scleria_iucn[,c('sectxspp','category')]
 colnames(spp_pext) <- c('species','GE2')
 
 # assign probability to each species x nr times
+nr <- 100
+
 l_spp_pext <- list()
 for (r in 1:nr) {
   for (s in 1:nrow(spp_pext)) {
