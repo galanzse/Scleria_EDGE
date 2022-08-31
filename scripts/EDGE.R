@@ -1,8 +1,6 @@
 
 library(tidyverse)
 library(devtools)
-source('scripts/functions_github.R')
-
 
 # load functions from github: https://github.com/rgumbs/EDGE2/
 source_url(url='https://raw.githubusercontent.com/rgumbs/EDGE2/main/EDGE.2.calc')
