@@ -25,6 +25,9 @@ scleria_tree <- drop.tip(scleria_tree, tip2)
 tip2 <- which(scleria_tree$tip.label %in% c('Scleria_rutenbergiana','Scleria_williamsii','Scleria_gaertneri'))
 scleria_tree <- drop.tip(scleria_tree, tip2)
 
+# check taxonomy
+scleria_tree$tip.label[scleria_tree$tip.label=='Scleria_abortiva'] <- 'Scleria_trialata'
+
 # 3 species in the tree do not have IUCN assessments
 setdiff(scleria_tree$tip.label, scleria_iucn$species)
 # I manually add these species to be considered in the analyses
