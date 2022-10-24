@@ -43,7 +43,6 @@ occurrences_old$dataset <- 'old'
 occurrences_old <- occurrences_old[!(occurrences_old$gbifid %in% occurrences_gbif$gbifid),]
 
 
-
 # rbind
 occ_data <- rbind(occurrences_gbif, occurrences_old, occurrences_hannah)
 colSums(is.na(occ_data))/nrow(occ_data) * 100 # % NAs
@@ -81,5 +80,33 @@ occ_data$species[occ_data$species=='Scleria pygmaea'] <- 'Diplacrum pygmaeum'
 occ_data <- occ_data %>% filter(species %in% gsub("_"," ",scleria_iucn$species))
 
 
+# iNaturalist
+iNaturalist_231022 <- read.csv("data/occurrences_iNaturalist_231022.csv", comment.char="#")
+iNaturalist_231022 <- iNaturalist_231022 %>% dplyr::select(id, scientific_name, latitude, longitude)
+colnames(iNaturalist_231022) <- c('gbifid', 'species', 'decimallatitude', 'decimallongitude')
+iNaturalist_231022$gbifid <- paste(rep('iNat',nrow(iNaturalist_231022)),1:nrow(iNaturalist_231022),sep='')
+
+plot(rast('C:/Users/user/Desktop/wc2.1_5m_bio/wc2.1_5m_bio_1.tif'))
+points(vect(iNaturalist_231022, geom=c('decimallongitude','decimallatitude'), 'epsg:4326'))
+
+iNaturalist_231022$species[which(!(iNaturalist_231022$species %in% occ_data$species))]
+iNaturalist_231022$species[iNaturalist_231022$species=='Scleria ciliata ciliata'] <- 'Scleria ciliata'
+iNaturalist_231022$species[iNaturalist_231022$species=='Scleria ciliata glabra'] <- 'Scleria ciliata'
+iNaturalist_231022$species[iNaturalist_231022$species=='Scleria ciliata elliottii'] <- 'Scleria ciliata'
+iNaturalist_231022$species[iNaturalist_231022$species=='Scleria pauciflora pauciflora '] <- 'Scleria pauciflora'
+iNaturalist_231022$species[iNaturalist_231022$species=='Scleria pauciflora caroliniana'] <- 'Scleria pauciflora'
+iNaturalist_231022$species[iNaturalist_231022$species=='Scleria setuloso-ciliata'] <- 'Scleria setulosociliata'
+
+# filter species assessed
+iNaturalist_231022 <- iNaturalist_231022 %>% filter(species %in% occ_data$species)
+iNaturalist_231022$scientificname <- NA
+iNaturalist_231022$dataset <- 'iNat'
+
+# paste data
+occ_data <- rbind(iNaturalist_231022[,colnames(occ_data)], occ_data)
+
+
 rm(occurrences_gbif, occurrences_hannah, occurrences_old)
+
+
 

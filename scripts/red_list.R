@@ -33,21 +33,22 @@ tip2 <- paste(tip2$V1, tip2$V2, sep='_')
 scleria_iucn$species <- tip2
 
 # check names
-scleria_iucn$species[scleria_iucn$species=='Scleria_sobolifera'] <- 'Scleria_sobolifer'
 scleria_iucn$section[scleria_iucn$species=='Scleria_polyrrhiza'] <- 'Hypoporum'
 scleria_iucn$section[scleria_iucn$species=='Scleria_variegata'] <- 'Virgatae' # following Bauters et al 2019 (PlosOne)
-scleria_iucn <- scleria_iucn %>% filter(category != 'EX')
 
 # exploratory
 par(mfrow=c(1,1),mar=c(4,4,2,2))
 scleria_iucn$category <- as.factor(scleria_iucn$category)
-scleria_iucn$category <- factor(scleria_iucn$category, levels = c("NE","DD","LC","NT","VU","EN","CR","EX"))
+scleria_iucn$category <- factor(scleria_iucn$category, levels = c("DD","LC","NT","VU","EN","CR","EX"))
 bb <- barplot(table(scleria_iucn$category), ylab='No. of species', ylim=c(0,170), cex.names=0.8, cex.axis=0.8)
 a <- as.numeric(table(scleria_iucn$category))
 text(bb,a+10,labels=a,cex=0.8)
 
-
 barplot(table(scleria_iucn$status))
 table(scleria_iucn$in_tree)
 
-rm(tip2, v_categories)
+# eliminate S. chevaleri for posterior analyses
+scleria_iucn <- scleria_iucn %>% filter(category != 'EX')
+
+
+rm(tip2, v_categories, a, bb)

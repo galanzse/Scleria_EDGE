@@ -21,20 +21,21 @@ scleria_tree$tip.label <- tip2
 # merge intraspecific taxa
 tip2 <- which(scleria_tree$tip.label %in% c('Scleria_distans','Scleria_pergracilis'))[c(1,3)]
 scleria_tree <- drop.tip(scleria_tree, tip2)
-# Three species are not correctly located
+# three species are not correctly located
 tip2 <- which(scleria_tree$tip.label %in% c('Scleria_rutenbergiana','Scleria_williamsii','Scleria_gaertneri'))
 scleria_tree <- drop.tip(scleria_tree, tip2)
 
 # check taxonomy
 scleria_tree$tip.label[scleria_tree$tip.label=='Scleria_abortiva'] <- 'Scleria_trialata'
+scleria_tree$tip.label[scleria_tree$tip.label=='Scleria_sobolifer'] <- 'Scleria_sobolifera'
 
-# 3 species in the tree do not have IUCN assessments
+# 2 species in the tree do not have IUCN assessments
 setdiff(scleria_tree$tip.label, scleria_iucn$species)
 # I manually add these species to be considered in the analyses
-not_assessed <- scleria_iucn[1:3,]
-not_assessed$subgenus <- c('Scleria','Hypoporum','Browniae')
-not_assessed$section <- c('Abortivae','Hypoporum','Browniae')
-not_assessed$species <- c("Scleria_abortiva","Scleria_zambesica","Scleria_depauperata")
+not_assessed <- scleria_iucn[1:2,]
+not_assessed$subgenus <- c('Hypoporum','Browniae')
+not_assessed$section <- c('Hypoporum','Browniae')
+not_assessed$species <- c("Scleria_zambesica","Scleria_depauperata")
 not_assessed$in_tree <- 'Y'
 not_assessed$category <- 'NE'
 not_assessed$status <- 'not_assessed'
@@ -83,7 +84,7 @@ for (s in 1:length(scleria_imputed$tip.label)) { # change labels
 
 mycat <- scleria_iucn$category[order(match(scleria_iucn$species,scleria_imputed$tip.label))]
 mycat <- factor(mycat)
-mycol <- c("azure3","azure4","black","forestgreen","yellow","orange2","red")[mycat]
+mycol <- c("azure4","black","forestgreen","yellow","orange2","red")[mycat]
 
 mycat2 <- scleria_iucn$in_tree[order(match(scleria_iucn$species,scleria_imputed$tip.label))]
 mycat2 <- factor(mycat2)

@@ -12,20 +12,21 @@ load("results/imputed_trees.RData")
 scleria_iucn <- read.csv("C:/Users/user/OneDrive/TESIS Y PUBLICACIONES/SCLERIA/Scleria_EDGE/results/scleria_iucn.txt", sep="")
 
 
-# probability of extinction dataframe to withdraw propabilities from
+# probability of extinction dataframe to withdraw probabilities from
 prob_pext <- GE.2.calc(pext)
 str(prob_pext)
 
 
 # species x pext dataframe to fill in each interaction
 spp_pext <- scleria_iucn[,c('sectxspp','category')]
-colnames(spp_pext) <- c('species','GE2')
+colnames(spp_pext) <- c('species','category')
+spp_pext$GE2 <- NA
 
 # assign probability to each species x nr times
 nr <- 100
-
 l_spp_pext <- list()
 for (r in 1:nr) {
+  spp_pext$GE2 <- NA
   for (s in 1:nrow(spp_pext)) {
     pspp <- spp_pext$species[s]
     pcat <- scleria_iucn$category[scleria_iucn$sectxspp==pspp]
@@ -36,7 +37,7 @@ for (r in 1:nr) {
     }
   }
   spp_pext$GE2 <- as.numeric(spp_pext$GE2)
-  l_spp_pext[[r]] <- spp_pext
+  l_spp_pext[[r]] <- spp_pext[,c('species','GE2')]
   print(r)
 }
 save(l_spp_pext, file="results/l_spp_pext.RData")
@@ -44,9 +45,9 @@ save(l_spp_pext, file="results/l_spp_pext.RData")
 
 # finally, I run EDGE nr times
 l_EDGE <- list()
-for (s in 1:nr) {
-  l_EDGE[[s]] <- EDGE.2.calc(imputed_trees[[s]], l_spp_pext[[s]])
-  print(s)
+for (r in 1:nr) {
+  l_EDGE[[r]] <- EDGE.2.calc(imputed_trees[[r]], l_spp_pext[[r]])
+  print(r)
 }
 save(l_EDGE, file="results/l_EDGE.RData")
 
@@ -54,9 +55,9 @@ save(l_EDGE, file="results/l_EDGE.RData")
 # 
 v_PD <- vector()
 v_ePDloss <- vector()
-for (s in 1:length(l_EDGE)) {
-  v_PD[s] <- l_EDGE[[s]][3][[1]][1,'PD']
-  v_ePDloss[s] <- l_EDGE[[s]][3][[1]][1,'ePDloss']
+for (r in 1:length(l_EDGE)) {
+  v_PD[r] <- l_EDGE[[r]][3][[1]][1,'PD']
+  v_ePDloss[r] <- l_EDGE[[r]][3][[1]][1,'ePDloss']
 }
 mean(v_PD); sd(v_PD)
 mean(v_ePDloss); sd(v_ePDloss)
@@ -66,12 +67,12 @@ mean(v_ePDloss); sd(v_ePDloss)
 EDGE2_values <- matrix(nrow=nrow(scleria_iucn), ncol=nr) %>% as.data.frame()
 rownames(EDGE2_values) <- scleria_iucn$sectxspp
 ED2_values <- EDGE2_values
-for (s in 1:nr) {
-  edg1 <- l_EDGE[[s]][[1]] %>% as.data.frame() %>% dplyr::select(Species,ED,EDGE); colnames(edg1)[1] <- c('sectxspp')
+for (r in 1:nr) {
+  edg1 <- l_EDGE[[r]][[1]] %>% as.data.frame() %>% dplyr::select(Species,ED,EDGE); colnames(edg1)[1] <- c('sectxspp')
   edg1 <- merge(scleria_iucn[,c('sectxspp','species')], edg1, by='sectxspp', all.x=T)
   edg1 <- edg1[order(match(edg1$sectxspp,rownames(EDGE2_values))),]
-  EDGE2_values[,s] <- edg1$EDGE
-  ED2_values[,s] <- edg1$ED
+  EDGE2_values[,r] <- edg1$EDGE
+  ED2_values[,r] <- edg1$ED
 }
 
 
