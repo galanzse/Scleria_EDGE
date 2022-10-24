@@ -73,3 +73,45 @@ ggplot(aes(y=nutlet_mass, x=nutlet_length), data=traits) +
   geom_smooth(method='loess', span=4, se=F) +
   labs(x='Nutlet length (mm)', y='1000 seed weight (g)')
 
+
+
+# create dendrogram with all considered traits: see Griffith et al 2022 (Functional Ecology) ####
+
+# copy data
+s_traits <- traits
+s_traits$species <- gsub(" ", "_",s_traits$species)
+rownames(s_traits) <- s_traits$species
+
+# traits to use
+v_traits <- c("inflorescence","life_form","leaf_length","nutlet_length","nutlet_width","log.height","log.leaf_width")
+s_traits <- s_traits[,v_traits]
+str(s_traits)
+
+# scale continuous variables
+s_traits[,3:7] <- scale(s_traits[,3:7])
+
+# distance matrix + clustering UPGMA
+daisy.mat <- daisy(s_traits[,v_traits], metric="gower") %>% as.dist()
+dend1 <- hclust(daisy.mat, method="average") # UPGMA
+
+# plot dendrogram
+dend1.phy <- as.phylo(dend1)
+
+mycat <- scleria_iucn$category[order(match(scleria_iucn$species,dend1.phy$tip.label))]
+mycat <- factor(mycat)
+mycol <- c("red","azure4","orange2","black", "grey","forestgreen","yellow")[mycat]
+
+par(mar=c(1,1,1,0))
+plot(as.phylo(dend1.phy), tip.color=mycol, cex=0.7)
+
+nr <- 100
+imputed_dendrograms <- list()
+for (r in 1:nr) { # randomly drop 1-3 traits per run
+  dend.n <- s_traits %>% dplyr::select(v_traits %>% sample(sample(4:6,1))) %>% daisy(metric="gower") %>% as.dist()
+  imputed_dendrograms[[r]] <- dend.n
+  print(r)
+}
+
+save(imputed_dendrograms, file="results/imputed_dendrograms.RData")
+
+rm(s_traits)
