@@ -107,11 +107,13 @@ plot(as.phylo(dend1.phy), tip.color=mycol, cex=0.7)
 nr <- 100
 imputed_dendrograms <- list()
 for (r in 1:nr) { # randomly drop 1-3 traits per run
-  dend.n <- s_traits %>% dplyr::select(v_traits %>% sample(sample(4:6,1))) %>% daisy(metric="gower") %>% as.dist()
-  imputed_dendrograms[[r]] <- dend.n
+  ntr <- sample(4:6,1)
+  dend.n <- s_traits %>% dplyr::select(sample(v_traits, ntr)) %>% daisy(metric="gower") %>% as.dist()
+  dend.n <- hclust(dend.n, method="average") # UPGMA
+  imputed_dendrograms[[r]] <- as.phylo(dend.n)
   print(r)
 }
 
 save(imputed_dendrograms, file="results/imputed_dendrograms.RData")
 
-rm(s_traits)
+rm(s_traits, dend.n, ntr)
