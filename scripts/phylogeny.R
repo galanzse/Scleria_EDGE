@@ -78,9 +78,7 @@ rm(tip2, not_assessed)
 
 # plot an imputed tree
 scleria_imputed <- imputed_trees[[1]]
-for (s in 1:length(scleria_imputed$tip.label)) { # change labels
-  scleria_imputed$tip.label[s] <- scleria_iucn$species[scleria_iucn$sectxspp==scleria_imputed$tip.label[s]]
-}
+scleria_imputed$tip.label <- scleria_iucn$species[order(match(scleria_iucn$sectxspp, scleria_imputed$tip.label))] # change labels
 
 mycat <- scleria_iucn$category[order(match(scleria_iucn$species,scleria_imputed$tip.label))]
 mycat <- factor(mycat)
