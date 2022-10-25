@@ -25,16 +25,16 @@ scleria_iucn$status[scleria_iucn$reference=='TO BE SUBMITTED TO IUCN IN SEPTEMBE
 scleria_iucn$reference <- NULL
 scleria_iucn$GBIF <- NULL
 
-# detect no-break spaces and add '_'
+# detect no-break spaces
 scleria_iucn$species
 scleria_iucn$species <- gsub("\u00A0", " ", scleria_iucn$species, fixed=TRUE)
 tip2 <- str_split(scleria_iucn$species, pattern= " ", simplify = TRUE)[,1:2] %>% as.data.frame()
-tip2 <- paste(tip2$V1, tip2$V2, sep='_')
+tip2 <- paste(tip2$V1, tip2$V2, sep=' ')
 scleria_iucn$species <- tip2
 
 # check names
-scleria_iucn$section[scleria_iucn$species=='Scleria_polyrrhiza'] <- 'Hypoporum'
-scleria_iucn$section[scleria_iucn$species=='Scleria_variegata'] <- 'Virgatae' # following Bauters et al 2019 (PlosOne)
+scleria_iucn$section[scleria_iucn$species=='Scleria polyrrhiza'] <- 'Hypoporum'
+scleria_iucn$section[scleria_iucn$species=='Scleria variegata'] <- 'Virgatae' # following Bauters et al 2019 (PlosOne)
 
 # exploratory
 par(mfrow=c(1,1),mar=c(4,4,2,2))

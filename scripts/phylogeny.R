@@ -17,17 +17,18 @@ scleria_tree$tip.label
 tip2 <- str_split(scleria_tree$tip.label, pattern= "_", simplify = TRUE)[,1:2] %>% as.data.frame()
 tip2 <- paste(tip2$V1, tip2$V2, sep='_')
 scleria_tree$tip.label <- tip2
+scleria_tree$tip.label <- gsub("_", " ", scleria_tree$tip.label) # change _ by spaces
 
 # merge intraspecific taxa
-tip2 <- which(scleria_tree$tip.label %in% c('Scleria_distans','Scleria_pergracilis'))[c(1,3)]
+tip2 <- which(scleria_tree$tip.label %in% c('Scleria distans','Scleria pergracilis'))[c(1,3)]
 scleria_tree <- drop.tip(scleria_tree, tip2)
 # three species are not correctly located
-tip2 <- which(scleria_tree$tip.label %in% c('Scleria_rutenbergiana','Scleria_williamsii','Scleria_gaertneri'))
+tip2 <- which(scleria_tree$tip.label %in% c('Scleria rutenbergiana','Scleria williamsii','Scleria gaertneri'))
 scleria_tree <- drop.tip(scleria_tree, tip2)
 
 # check taxonomy
-scleria_tree$tip.label[scleria_tree$tip.label=='Scleria_abortiva'] <- 'Scleria_trialata'
-scleria_tree$tip.label[scleria_tree$tip.label=='Scleria_sobolifer'] <- 'Scleria_sobolifera'
+scleria_tree$tip.label[scleria_tree$tip.label=='Scleria abortiva'] <- 'Scleria trialata'
+scleria_tree$tip.label[scleria_tree$tip.label=='Scleria sobolifer'] <- 'Scleria sobolifera'
 
 # 2 species in the tree do not have IUCN assessments
 setdiff(scleria_tree$tip.label, scleria_iucn$species)
@@ -35,7 +36,7 @@ setdiff(scleria_tree$tip.label, scleria_iucn$species)
 not_assessed <- scleria_iucn[1:2,]
 not_assessed$subgenus <- c('Hypoporum','Browniae')
 not_assessed$section <- c('Hypoporum','Browniae')
-not_assessed$species <- c("Scleria_zambesica","Scleria_depauperata")
+not_assessed$species <- c("Scleria zambesica","Scleria depauperata")
 not_assessed$in_tree <- 'Y'
 not_assessed$category <- 'NE'
 not_assessed$status <- 'not_assessed'
@@ -47,12 +48,11 @@ table(scleria_iucn$species %in% scleria_tree$tip.label)
 scleria_iucn$species[which(!(scleria_iucn$species %in% scleria_tree$tip.label))]
 
 # for this, I will substitute the genus by the section
-scleria_iucn$sectxspp <- paste(scleria_iucn$section, str_split(scleria_iucn$species, pattern="_", simplify = TRUE)[,2], sep='_')
+scleria_iucn$sectxspp <- paste(scleria_iucn$section, str_split(scleria_iucn$species, pattern=" ", simplify = TRUE)[,2], sep=' ')
 
 for (s in 1:length(scleria_tree$tip.label)) { 
   scleria_tree$tip.label[s] <- scleria_iucn$sectxspp[scleria_iucn$species==scleria_tree$tip.label[s]]
 }
-
 
 par(mar=c(1,1,1,1))
 plot(scleria_tree, cex=0.5)
@@ -66,7 +66,7 @@ nr <- 100
 
 imputed_trees <- list()
 for (s in 1:nr) {
-  imputed_trees[[s]] <- congeneric.impute(scleria_tree, species=v_sppximp, split="_")
+  imputed_trees[[s]] <- congeneric.impute(scleria_tree, species=v_sppximp, split=" ")
   print(s)
 }
 

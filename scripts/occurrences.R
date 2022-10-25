@@ -1,7 +1,9 @@
 
 library(tidyverse)
 library(readxl)
-source('scripts/red_list.R')
+
+# load phylogeny.R because I used it to impute two speciss in the scleria_iucn dataframe
+source('scripts/phylogeny.R')
 
 
 # GBIF
@@ -47,20 +49,15 @@ occurrences_old <- occurrences_old[!(occurrences_old$gbifid %in% occurrences_gbi
 occ_data <- rbind(occurrences_gbif, occurrences_old, occurrences_hannah)
 colSums(is.na(occ_data))/nrow(occ_data) * 100 # % NAs
 
+
 # we will not need intraspecific epithets
 occ_data$species[occ_data$species=='Scleria pergracilis brachystachys'] <- 'Scleria pergracilis'
 occ_data$species[occ_data$species=='Scleria distans chondrocarpa'] <-  'Scleria distans'
 
-# all assessed species have occurrence data
-table(gsub("_"," ",scleria_iucn$species) %in% occ_data$species)
-
-
-# some species are present in GBIF but not assessed
-setdiff(occ_data$species, gsub("_"," ",scleria_iucn$species))
-
-occ_data <- occ_data %>% subset(!(species %in% c('Scleria Maggieville', 'Scleria Laura','Scleria Oenpelli','Scleria McMinns-Lagoon','Scleria Jabiru','Scleria Wilton-River'))) # some entries are wrong
-
-occ_data$species[occ_data$species=='Scleria sobolifera'] <- 'Scleria sobolifer' # check spelling and synonyms in WCSP
+# some entries are wrong
+occ_data <- occ_data %>% subset(!(species %in% c('Scleria Maggieville', 'Scleria Laura','Scleria Oenpelli','Scleria McMinns-Lagoon','Scleria Jabiru','Scleria Wilton-River')))
+# check spelling and synonyms in WCSP
+occ_data$species[occ_data$species=='Scleria sobolifer'] <- 'Scleria sobolifera'
 occ_data$species[occ_data$species=='Scleria sieberi'] <- 'Scleria gaertneri'
 occ_data$species[occ_data$species=='Scleria melaleuca'] <- 'Scleria gaertneri'
 occ_data$species[occ_data$species=='Scleria minima'] <- 'Scleria pusilla'
@@ -76,8 +73,16 @@ occ_data$species[occ_data$species=='Scleria vichadensis'] <- 'Scleria mitis'
 occ_data$species[occ_data$species=='Scleria pygmaea'] <- 'Diplacrum pygmaeum'
 
 
+# some species are present in GBIF but not assessed
+setdiff(occ_data$species, scleria_iucn$species)
+
 # filter only assessed species
-occ_data <- occ_data %>% filter(species %in% gsub("_"," ",scleria_iucn$species))
+occ_data <- occ_data %>% filter(species %in% scleria_iucn$species)
+
+scleria_iucn$species[!(scleria_iucn$species %in% traits$species)]
+
+# check all assessed species have occurrence data
+table(scleria_iucn$species %in% occ_data$species)
 
 
 # iNaturalist

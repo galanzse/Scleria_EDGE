@@ -3,6 +3,9 @@ library(tidyverse)
 library(GGally)
 library(readxl)
 library(missMDA)
+library(ape)
+library(cluster)
+source('scripts/phylogeny.R') # need traits fro all species with molecular sequences (3 yet NE)
 
 
 # import trait data
@@ -17,6 +20,10 @@ traits_isabel$WCVP_name[!(traits_isabel$WCVP_name %in% traits_javi$species)]
 colnames(traits_isabel)[colnames(traits_isabel)=='WCVP_name'] <- 'species'
 traits <- merge(traits_javi, traits_isabel, by='species', all.x=T)
 rm(traits_isabel, traits_javi)
+
+# filter species in scleria_iucn
+table(scleria_iucn$species %in% traits$species)
+traits <- traits %>% filter(species %in% scleria_iucn$species)
 
 # check NAs per column
 colSums(is.na(traits))[order(colSums(is.na(traits)))]
@@ -79,7 +86,6 @@ ggplot(aes(y=nutlet_mass, x=nutlet_length), data=traits) +
 
 # copy data
 s_traits <- traits
-s_traits$species <- gsub(" ", "_",s_traits$species)
 rownames(s_traits) <- s_traits$species
 
 # traits to use
@@ -93,13 +99,11 @@ s_traits[,3:7] <- scale(s_traits[,3:7])
 # distance matrix + clustering UPGMA
 daisy.mat <- daisy(s_traits[,v_traits], metric="gower") %>% as.dist()
 dend1 <- hclust(daisy.mat, method="average") # UPGMA
-
-# plot dendrogram
-dend1.phy <- as.phylo(dend1)
+dend1.phy <- as.phylo(dend1) # as.phylo
 
 mycat <- scleria_iucn$category[order(match(scleria_iucn$species,dend1.phy$tip.label))]
 mycat <- factor(mycat)
-mycol <- c("red","azure4","orange2","black", "grey","forestgreen","yellow")[mycat]
+mycol <- c("azure4","black","forestgreen","yellow","orange2","red")[mycat]
 
 par(mar=c(1,1,1,0))
 plot(as.phylo(dend1.phy), tip.color=mycol, cex=0.7)

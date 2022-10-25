@@ -53,9 +53,11 @@ for (sp in unique(occ_data$species)) {
   # select one observation per cell
   ss_df <- ss_df %>% group_by(cell) %>% slice_sample(n=1)
   
-  # climatic filter
-  ss_df <- ss_df %>% filter(MAT > boxplot.stats(ss_df$MAT, coef=1.5)$stats[1] & MAT < boxplot.stats(ss_df$MAT, coef=1.5)$stats[5] &
-                            AP > boxplot.stats(ss_df$AP, coef=1.5)$stats[1] & AP < boxplot.stats(ss_df$AP, coef=1.5)$stats[5] )
+  # climatic filter only for species with more than X observations
+  if (nrow(ss_df) > 20) {
+    ss_df <- ss_df %>% filter(MAT > boxplot.stats(ss_df$MAT, coef=1.5)$stats[1] & MAT < boxplot.stats(ss_df$MAT, coef=1.5)$stats[5] &
+                              AP > boxplot.stats(ss_df$AP, coef=1.5)$stats[1] & AP < boxplot.stats(ss_df$AP, coef=1.5)$stats[5] )
+  }
   
   # save
   occ_filtered[[sp]] <- ss_df

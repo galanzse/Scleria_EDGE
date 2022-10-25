@@ -40,7 +40,6 @@ for (r in 1:nr) {
   l_spp_pext[[r]] <- spp_pext[,c('species','GE2')]
   print(r)
 }
-save(l_spp_pext, file="results/l_spp_pext.RData")
 
 
 # finally, I run EDGE nr times
@@ -88,10 +87,11 @@ for (s in 1:nrow(EDGE2_median)) {
   ED2_median[s,] <- boxplot.stats(as.vector(sp2))$stats
 }
 
+m1 <- as.vector(unlist(as.vector(EDGE2_values))) %>% median(na.rm=T)
 
 par(mfrow=c(1,1),mar=c(7,4,1,1))
 boxplot(t(EDGE2_median), col='white', las=2, cex.axis=0.8, ylab='EDGE2 score')
-abline(h=0.116972, col='red')
+abline(h=m1, col='red')
 
 
 # EDGE2 lists
@@ -102,8 +102,6 @@ EDGE2_list <- merge(scleria_iucn, EDGE2_list, by='sectxspp')
 EDGE2_list$EDGE2 <- NA
 EDGE2_list$perc <- NA
 EDGE2_list$list <- NA
-
-m1 <- as.vector(unlist(as.vector(EDGE2_values))) %>% median(na.rm=T)
 
 for (s in 1:nrow(EDGE2_list)) {
   d1 <- EDGE2_values[EDGE2_list$sectxspp[s],] %>% t() %>% as.vector()
