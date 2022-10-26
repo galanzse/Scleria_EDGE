@@ -87,6 +87,7 @@ for (s in 1:nrow(EDGE2_median)) {
   ED2_median[s,] <- boxplot.stats(as.vector(sp2))$stats
 }
 
+# genera mean as reference
 m1 <- as.vector(unlist(as.vector(EDGE2_values))) %>% median(na.rm=T)
 
 par(mfrow=c(1,1),mar=c(7,4,1,1))
