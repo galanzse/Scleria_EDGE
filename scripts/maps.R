@@ -162,8 +162,8 @@ for (r in c(1:nrow(df_scleria_map))) {
 
 
 par(mfrow=c(1,1))
-plot(log(m_richness), main='log Richness'); lines(wrld)
-plot(log(m_faith), main='log Faith'); lines(wrld)
+plot(m_richness, main='Richness'); lines(wrld)
+plot(m_faith, main='Faith'); lines(wrld)
 plot(m_MPD, main='MPD'); lines(wrld)
 plot(m_MFD, main='MFD'); lines(wrld)
 
