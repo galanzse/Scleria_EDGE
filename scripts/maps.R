@@ -20,7 +20,7 @@ RAST1_8857 <- RAST1_lonlat %>% terra::project('epsg:8857') %>% # equal area, see
   terra::aggregate(fact=18.26152, fun='min') %>% terra::crop(wrld, mask=T)
 terra::cellSize(RAST1_8857) # 100 km aprox
 
-plot(RAST1_lonlat); lines(wrld)
+plot(RAST1_8857, legend=F); lines(wrld)
 
 
 # DATA IMPORT AND PIXEL CALCULATION ####
@@ -31,21 +31,23 @@ EcoDGE2_list <- read.csv("results/EcoDGE2_list.csv")
 
 # occurrences
 scleria_occ <- read.csv("results/occ_filtered.txt", sep="") %>% dplyr::select(species,y,x)
-table(EDGE2_list$species %in% scleria_occ$species) # check missing species
+EDGE2_list$species[!(EDGE2_list$species %in% scleria_occ$species)] # check missing species
 p_scleria_occ <- vect(scleria_occ, geom=c('x','y'), 'epsg:4326') %>% terra::project('epsg:8857') # points file
 
-# extract cell values
+# extract cell values and check NAs
+scleria_occ$cell <- terra::extract(RAST1_8857, p_scleria_occ, xy=T, cell=T)$cell
+is.na(scleria_occ$cell) %>% table()
+
+scleria_occ <- scleria_occ %>% filter(!(is.na(cell))) # remove NA cells and redo points file
+p_scleria_occ <- vect(scleria_occ, geom=c('x','y'), 'epsg:4326') %>% terra::project('epsg:8857') # points file
 scleria_occ$cell <- terra::extract(RAST1_8857, p_scleria_occ, xy=T, cell=T)$cell
 scleria_occ$x <- terra::extract(RAST1_8857, p_scleria_occ, xy=T, cell=T)$x
 scleria_occ$y <- terra::extract(RAST1_8857, p_scleria_occ, xy=T, cell=T)$y
 
-head(scleria_occ)
-is.na(scleria_occ$cell) %>% table()
-scleria_occ <- scleria_occ %>% filter(!(is.na(cell))) # remove NA cells
 
-# plot
+# plot observations
 par(mfrow=c(1,1))
-plot(RAST1_8857, col='lightgreen'); lines(wrld); points(p_scleria_occ)
+plot(RAST1_8857, col='lightgreen', legend=F); lines(wrld); points(p_scleria_occ)
 
 
 
@@ -168,56 +170,76 @@ plot(m_MPD, main='MPD'); lines(wrld)
 plot(m_MFD, main='MFD'); lines(wrld)
 
 
-plot(m_EDGE, main='EDGE2'); lines(wrld)
-plot(log(m_EcoDGE+1), main='EcoDGE2'); lines(wrld)
-
-
-
 # countries
-scleria_occ$region <- wrld %>% terra::extract(p_scleria_occ) %>% dplyr::select(name) %>% as.vector() %>% deframe()
-scleria_occ <- na.omit(scleria_occ)
+scleria_occ$country <- wrld %>% terra::extract(p_scleria_occ) %>% dplyr::select(name) %>% as.vector() %>% deframe()
+spp_x_ctr <- scleria_occ[,c('species','country')] %>% na.omit() %>% unique()
 
-# list of countries with greater EDGE2 scores
-spp_x_ctr <- unique(scleria_occ[,c('species','region')])
-EDGE_x_ctr <- matrix(nrow=length(unique(spp_x_ctr$region)), ncol=6) %>% as.data.frame()
-colnames(EDGE_x_ctr) <- c('region','richness','sum_EDGE','median_EDGE','n_list','top25')
-EDGE_x_ctr$region <- unique(spp_x_ctr$region)
+# add indexes to country
+EDGE_countries <- matrix(nrow=length(unique(spp_x_ctr$country)), ncol=6) %>% as.data.frame()
+colnames(EDGE_countries) <- c('country','richness','sum_EDGE','median_EDGE','n_list','n_main')
+EDGE_countries$country <- unique(spp_x_ctr$country)
+EcoDGE_countries <- EDGE_countries
 
-for (s in 1:nrow(EDGE_x_ctr)) {
-  sp1 <- spp_x_ctr$species[spp_x_ctr$region==EDGE_x_ctr$region[s]]
-  EDGE_x_ctr$n_list[s] <- length(E_list[E_list %in% sp1])
-  EDGE_x_ctr$top25[s] <- length(top25[top25 %in% sp1])
+# lists
+E2_list <- EDGE2_list$species[!is.na(EDGE2_list$list)]
+Eco2_list <- EcoDGE2_list$species[!is.na(EcoDGE2_list$list)]
+E2_main <- EDGE2_list %>% filter(list=='main') %>% dplyr::select(species) %>% deframe()
+Eco2_main <- EcoDGE2_list %>% filter(list=='main') %>% dplyr::select(species) %>% deframe()
+
+for (s in 1:nrow(EDGE_countries)) {
   
-  EDGE_x_ctr$richness[s] <- length(sp1)
+  sp1 <- spp_x_ctr$species[spp_x_ctr$country==EDGE_countries$country[s]]
+  EDGE_countries$n_list[s] <- length(E2_list[E2_list %in% sp1])
+  EDGE_countries$n_main[s] <- length(E2_main[E2_main %in% sp1])
+  EDGE_countries$richness[s] <- length(sp1)
   ed1 <- EDGE2_list$EDGE2[EDGE2_list$species %in% sp1]
-  EDGE_x_ctr$sum_EDGE[s] <- sum(ed1)
-  EDGE_x_ctr$median_EDGE[s] <- median(ed1)
+  EDGE_countries$sum_EDGE[s] <- sum(ed1)
+  EDGE_countries$median_EDGE[s] <- median(ed1)
+  
+  sp1 <- spp_x_ctr$species[spp_x_ctr$country==EcoDGE_countries$country[s]]
+  EcoDGE_countries$n_list[s] <- length(Eco2_list[Eco2_list %in% sp1])
+  EcoDGE_countries$n_main[s] <- length(Eco2_main[Eco2_main %in% sp1])
+  EcoDGE_countries$richness[s] <- length(sp1)
+  ed1 <- EcoDGE2_list$EDGE2[EcoDGE2_list$species %in% sp1]
+  EcoDGE_countries$sum_EDGE[s] <- sum(ed1)
+  EcoDGE_countries$median_EDGE[s] <- median(ed1)
+  
 }
 
-EDGE_x_ctr$region[EDGE_x_ctr$region=='France'] <- 'French Guiana'
-EDGE_x_ctr <- EDGE_x_ctr %>% filter(region!='Canada')
+# fix some entries
+EDGE_countries$country[EDGE_countries$country=='France'] <- 'French Guiana'
+EDGE_countries <- EDGE_countries %>% filter(country!='Canada')
+EcoDGE_countries$country[EcoDGE_countries$country=='France'] <- 'French Guiana'
+EcoDGE_countries <- EcoDGE_countries %>% filter(country!='Canada')
 
-write.table(EDGE_x_ctr, 'results/EDGE_x_ctr.txt')
+# save
+write.table(EDGE_countries, 'results/EDGE_countries.txt')
+write.table(EcoDGE_countries, 'results/EcoDGE_countries.txt')
 
 
 # exploratory
 par(mfrow=c(2,3), mar=c(5,5,5,5))
-plot(sum_EDGE ~ richness, EDGE_x_ctr)
-plot(median_EDGE ~ richness, EDGE_x_ctr[EDGE_x_ctr$richness>5,])
-plot(median_EDGE ~ sum_EDGE, EDGE_x_ctr[EDGE_x_ctr$richness>5,])
-plot(n_list ~ top25, EDGE_x_ctr)
-plot(n_list ~ richness, EDGE_x_ctr)
-plot(top25 ~ richness, EDGE_x_ctr)
+plot(n_main ~ n_list, ylab='Nº species main list', xlab='Nº listed species', main='EDGE2', data=EDGE_countries)
+plot(n_list ~ richness, ylab='Nº listed species', xlab='Richness', main='EDGE2', data=EDGE_countries)
+plot(n_main ~ richness, ylab='Nº species main list', xlab='Richness', main='EDGE2', data=EDGE_countries)
+plot(n_main ~ n_list, ylab='Nº species main list', xlab='Nº listed species', main='EcoDGE2', data=EcoDGE_countries)
+plot(n_list ~ richness, ylab='Nº listed species', xlab='Richness', main='EcoDGE2', data=EcoDGE_countries)
+plot(n_main ~ richness, ylab='Nº species main list', xlab='Richness', main='EcoDGE2', data=EcoDGE_countries)
 
 
-# listed and top25 EDGE2 Scleria x country
+# countries maps
+colnames(EDGE_countries)[colnames(EDGE_countries)=='country'] <- 'region'
+colnames(EcoDGE_countries)[colnames(EcoDGE_countries)=='country'] <- 'region'
+
 world <- map_data("world")
-world <- merge(world, EDGE_x_ctr, by="region", all.x=T)
+world <- merge(world, EDGE_countries, by="region", all.x=T)
 world <- world %>% arrange(group, order)
 
-# match names of ne_countries and map_world
-EDGE_x_ctr$region[!(EDGE_x_ctr$region %in% world$region)] <- c('USA','Democratic Republic of the Congo','Republic of Congo','Ivory Coast','Dominican Republic','Central African Republic','Trinidad','Laos', 'Equatorial Guinea','Solomon Islands')
+# match names of ne_countries and map_world for reference
+EDGE_countries$region[!(EDGE_countries$region %in% world$region)] <- c('USA','Dominican Republic','Ivory Coast','Central African Republic',  'Democratic Republic of the Congo','Laos','Trinidad','Republic of Congo','Solomon Islands','Equatorial Guinea','South Korea')
+EcoDGE_countries$region[!(EcoDGE_countries$region %in% world$region)] <- c('USA','Dominican Republic','Ivory Coast','Central African Republic',  'Democratic Republic of the Congo','Laos','Trinidad','Republic of Congo','Solomon Islands','Equatorial Guinea','South Korea')
 
+# maps
 g1 <- ggplot(aes(x=long, y=lat, group=group, fill=n_list), data=world) +
   geom_polygon() + theme_bw() +
   geom_polygon(color="white", size=0.2) +
