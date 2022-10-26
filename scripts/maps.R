@@ -10,15 +10,24 @@ source('scripts/traits.R')
 
 
 # world map
-wrld <- ne_countries(scale = 110, type = "countries", continent = NULL, country = NULL, geounit = NULL, sovereignty = NULL, returnclass = "sf") %>% terra::vect() %>% terra::project('epsg:8857')
+wrld <- ne_countries(scale = 110, type = "countries", continent = NULL, country = NULL, geounit = NULL, sovereignty = NULL, returnclass = "sf") %>% terra::vect() %>% terra::crop(ext(-180,180,-50,70)) %>% terra::project('epsg:8857')
 
 # base map
 RAST1_lonlat <- rast('C:/Users/user/Desktop/wc2.1_5m_bio/wc2.1_5m_bio_1.tif')
 RAST1_lonlat[!is.na(RAST1_lonlat)] <- 0
 
 RAST1_8857 <- RAST1_lonlat %>% terra::project('epsg:8857') %>% # equal area, see https://epsg.io/8857
-  terra::aggregate(fact=18.26152, fun='min')
+  terra::aggregate(fact=18.26152, fun='min') %>% terra::crop(wrld, mask=T)
 terra::cellSize(RAST1_8857) # 100 km aprox
+
+plot(RAST1_lonlat); lines(wrld)
+
+
+# DATA IMPORT AND PIXEL CALCULATION ####
+
+# data
+EDGE2_list <- read.csv("results/EDGE2_list.csv") # data
+EcoDGE2_list <- read.csv("results/EcoDGE2_list.csv")
 
 # occurrences
 scleria_occ <- read.csv("results/occ_filtered.txt", sep="") %>% dplyr::select(species,y,x)
@@ -27,7 +36,12 @@ p_scleria_occ <- vect(scleria_occ, geom=c('x','y'), 'epsg:4326') %>% terra::proj
 
 # extract cell values
 scleria_occ$cell <- terra::extract(RAST1_8857, p_scleria_occ, xy=T, cell=T)$cell
+scleria_occ$x <- terra::extract(RAST1_8857, p_scleria_occ, xy=T, cell=T)$x
+scleria_occ$y <- terra::extract(RAST1_8857, p_scleria_occ, xy=T, cell=T)$y
+
+head(scleria_occ)
 is.na(scleria_occ$cell) %>% table()
+scleria_occ <- scleria_occ %>% filter(!(is.na(cell))) # remove NA cells
 
 # plot
 par(mfrow=c(1,1))
@@ -38,14 +52,14 @@ plot(RAST1_8857, col='lightgreen'); lines(wrld); points(p_scleria_occ)
 # for each cell, I compute: richness, Faith, MPD, MFD, mean_EDGE, mean_EcoDGE, sum_EDGE, sum_EcoDGE
 
 # DATA
-EDGE2_list <- read.csv("results/EDGE2_list.csv") # data
-EcoDGE2_list <- read.csv("results/EcoDGE2_list.csv")
+EDGE2_list
+EcoDGE2_list
 daisy.mat
 imputed_trees
 
 
 # results
-df_scleria_map <- scleria_occ[c('cell')] %>% unique()
+df_scleria_map <- scleria_occ[c('cell','x','y')] %>% unique()
 df_scleria_map$richness <- NA
 df_scleria_map$Faith <- NA
 df_scleria_map$MPD <- NA
@@ -74,7 +88,10 @@ colnames(ss_tr) <- gsub(' ', '_', colnames(ss_tr))
 diag(ss_tr) <- NA
 
 # for phylogenetic indexes the values across imputed trees are equal
-cph1 <- cophenetic(imputed_trees[[1]])
+tree1 <- imputed_trees[[1]]
+tree1$tip.label <- scleria_iucn$species[order(match(scleria_iucn$sectxspp, tree1$tip.label))] # change labels
+tree1$tip.label <- gsub(' ', '_', tree1$tip.label)
+cph1 <- cophenetic(tree1)
 
 # obtain indexes per pixel
 for (r in 1:nrow(df_scleria_map)) {
@@ -99,7 +116,7 @@ for (r in 1:nrow(df_scleria_map)) {
   ss_tr_r <- ss_tr[ss_sp,ss_sp] # unweighted mean pairwise distance MFD: de Bello et al. 2016 (Oecologia)
   df_scleria_map$MFD[r] <- mean(ss_tr_r, na.rm=T)
   
-  df_scleria_map$Faith[r] <-  pd(samp=ss_cm, tree=imputed_trees[[1]], include.root=T)$PD
+  df_scleria_map$Faith[r] <-  pd(samp=ss_cm, tree=tree1, include.root=T)$PD
   
   cph_n <- cph1[ss_sp,ss_sp]
   df_scleria_map$MPD[r] <-  cph_n[lower.tri(cph_n)] %>% mean()
@@ -108,6 +125,10 @@ for (r in 1:nrow(df_scleria_map)) {
 
 }
 
+head(df_scleria_map)
+colSums(is.na(df_scleria_map))
+
+df_scleria_map[is.na(df_scleria_map)] <- 0 # replace NA by 0 for plotting
 write.table(df_scleria_map, 'results/df_scleria_map.txt')
 
 ggpairs(df_scleria_map[,c("richness","Faith","MPD","mean_EDGE","sum_EDGE","MFD","mean_EcoDGE","sum_EcoDGE")])
@@ -115,34 +136,41 @@ ggpairs(df_scleria_map[,c("richness","Faith","MPD","mean_EDGE","sum_EDGE","MFD",
 colnames(df_scleria_map)
 
 
+# create rasters
+m_richness <- RAST1_8857
+m_faith <- RAST1_8857
+m_MPD <- RAST1_8857
+m_EDGE <- RAST1_8857
+m_MFD <- RAST1_8857
+m_EcoDGE <- RAST1_8857
 
+# remove diversity and values 
+df_scleria_map
 
-
-EDGE_rast_sum <- EDGE_rast
-EDGE_rast_med <- EDGE_rast
-EDGE_rast_list <- EDGE_rast
-EDGE_rast_t25 <- EDGE_rast
-
-scleria_occ$cell <- terra::extract(EDGE_rast, p_scleria_occ, xy=T, cell=T)$cell
-E_list <- EDGE2_list$species[!is.na(EDGE2_list$list)]
-top25 <- EDGE2_list$species[order(EDGE2_list$EDGE2, decreasing=T)][1:25]
-
-for (c in unique(scleria_occ$cell)) {
-  ss1 <- scleria_occ %>% filter(cell==c) %>% dplyr::select(species) %>% deframe() %>% unique() %>% as.vector()
-  EDGE_rast_sum[c] <- EDGE2_list$EDGE2[EDGE2_list$species %in% ss1] %>% sum()
-  EDGE_rast_med[c] <- EDGE2_list$EDGE2[EDGE2_list$species %in% ss1] %>% median()
-  EDGE_rast_list[c] <- length(E_list[E_list %in% ss1])
-  EDGE_rast_t25[c] <- length(top25[top25 %in% ss1])
+for (r in c(1:nrow(df_scleria_map))) {
+  m_richness[df_scleria_map$cell[r]] <- df_scleria_map$richness[r]
+  m_faith[df_scleria_map$cell[r]] <- df_scleria_map$Faith[r]
+  m_MPD[df_scleria_map$cell[r]] <- df_scleria_map$MPD[r]
+  m_EDGE[df_scleria_map$cell[r]] <- df_scleria_map$mean_EDGE[r]
+  m_MFD[df_scleria_map$cell[r]] <- df_scleria_map$MFD[r]
+  m_EcoDGE[df_scleria_map$cell[r]] <- df_scleria_map$mean_EcoDGE[r]
+  print(r)
 }
 
-par(mfrow=c(2,1))
-plot(log(EDGE_rast_sum)+4); lines(wrld)
-plot(log(EDGE_rast_med)+4); lines(wrld)
 
-EDGE_rast_list[EDGE_rast_list==0] <- NA 
-EDGE_rast_t25[EDGE_rast_t25==0] <- NA 
-plot(EDGE_rast_list); lines(wrld) # better at the country level
-plot(EDGE_rast_t25); lines(wrld) # better at the country level
+# MAPS ####
+
+
+par(mfrow=c(1,1))
+plot(log(m_richness), main='log Richness'); lines(wrld)
+plot(log(m_faith), main='log Faith'); lines(wrld)
+plot(m_MPD, main='MPD'); lines(wrld)
+plot(m_MFD, main='MFD'); lines(wrld)
+
+
+plot(m_EDGE, main='EDGE2'); lines(wrld)
+plot(log(m_EcoDGE+1), main='EcoDGE2'); lines(wrld)
+
 
 
 # countries
