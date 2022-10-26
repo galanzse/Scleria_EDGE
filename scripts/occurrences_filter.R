@@ -12,20 +12,26 @@ colnames(occ_data)[colnames(occ_data)=='decimallongitude'] <- 'x'
 # correct some common mistakes from widespread species
 occ_data$species[occ_data$species=='Scleria secans' & occ_data$x > 0] <- 'Scleria boivinii' # Scleria secans es Americana
 occ_data$species[occ_data$species=='Scleria hirtella' & occ_data$x > -30] <- 'Scleria distans' # Scleria hirtella es Americana
+
 # check individual ranges
-occ_data <- occ_data %>% filter(!(gbifid %in% c( occ_data$gbifid[occ_data$species=='Scleria gaertneri' & occ_data$x > 100],
-                                                 occ_data$gbifid[occ_data$species=='Scleria distans' & occ_data$x > 100],
-                                                 occ_data$gbifid[occ_data$species=='Scleria terrestris' & occ_data$x < 0],
-                                                 occ_data$gbifid[occ_data$species=='Scleria racemosa' & occ_data$x < -30],
-                                                 occ_data$gbifid[occ_data$species=='Scleria brownii' & occ_data$x > -100 & occ_data$x < 0],
-                                                 occ_data$gbifid[occ_data$species=='Scleria dregeana' & occ_data$x < 0],
-                                                 occ_data$gbifid[occ_data$species=='Scleria levis' & occ_data$x < 0],
-                                                 occ_data$gbifid[occ_data$species=='Scleria distans' & occ_data$x > 100],
-                                                 occ_data$gbifid[occ_data$species=='Scleria novae-hollandiae' & occ_data$x < 75],
-                                                 occ_data$gbifid[occ_data$species=='Scleria parvula' & occ_data$x < 60],
-                                                 occ_data$gbifid[occ_data$species=='Scleria pauciflora' & occ_data$y < 0],
-                                                 occ_data$gbifid[occ_data$species=='Scleria rugosa' & occ_data$x < 0]
-                                                 ) ) )
+occ_data$code <- 1:nrow(occ_data)
+occ_data <- occ_data %>% filter(!(code %in% c( occ_data$code[occ_data$species=='Scleria gaertneri' & occ_data$x > 100],
+                                                occ_data$code[occ_data$species=='Scleria distans' & occ_data$x > 100],
+                                                occ_data$code[occ_data$species=='Scleria terrestris' & occ_data$x < 0],
+                                                occ_data$code[occ_data$species=='Scleria racemosa' & occ_data$x < -30],
+                                                occ_data$code[occ_data$species=='Scleria brownii' & occ_data$x > -100 & occ_data$x < 0],
+                                                occ_data$code[occ_data$species=='Scleria dregeana' & occ_data$x < 0],
+                                                occ_data$code[occ_data$species=='Scleria levis' & occ_data$x < 0],
+                                                occ_data$code[occ_data$species=='Scleria novae-hollandiae' & occ_data$x < 75],
+                                                occ_data$code[occ_data$species=='Scleria parvula' & occ_data$x < 60],
+                                                occ_data$code[occ_data$species=='Scleria pauciflora' & occ_data$y < 0],
+                                                occ_data$code[occ_data$species=='Scleria rugosa' & occ_data$x < 0]
+                                              ) ) )
+
+occ_data$code <- NULL
+occ_data$scientificname <- NULL
+occ_data$gbifid <- NULL
+head(occ_data)
 
 
 # will use same variables as in Larridon et al 2021
@@ -75,9 +81,9 @@ plot(MAT, main='filtered'); points(p_occ_filtered)
 # check individual species
 # a.spp <- unique(occ_filtered$species[order(occ_filtered$species)])
 # for (sp in a.spp) {
-#   ss_df <- occ_filtered %>% filter(species == sp)
-#   p_ss_df <- vect(ss_df, geom=c('x','y'), 'epsg:4326')
-#   plot(MAT, main=sp); points(p_ss_df)
+  # ss_df <- occ_filtered %>% filter(species == 'Scleria parvula')
+  # p_ss_df <- vect(ss_df, geom=c('x','y'), 'epsg:4326')
+  # plot(MAT, main=sp); points(p_ss_df)
 #   Sys.sleep(2)
 # }
 
