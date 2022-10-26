@@ -13,18 +13,18 @@ colnames(occ_data)[colnames(occ_data)=='decimallongitude'] <- 'x'
 occ_data$species[occ_data$species=='Scleria secans' & occ_data$x > 0] <- 'Scleria boivinii' # Scleria secans es Americana
 occ_data$species[occ_data$species=='Scleria hirtella' & occ_data$x > -30] <- 'Scleria distans' # Scleria hirtella es Americana
 # check individual ranges
-occ_data <- occ_data %>% filter(!(gbifid %in% c( occ_filtered$gbifid[occ_filtered$species=='Scleria gaertneri' & occ_filtered$x > 100],
-                                                 occ_filtered$gbifid[occ_filtered$species=='Scleria distans' & occ_filtered$x > 100],
-                                                 occ_filtered$gbifid[occ_filtered$species=='Scleria terrestris' & occ_filtered$x < 0],
-                                                 occ_filtered$gbifid[occ_filtered$species=='Scleria racemosa' & occ_filtered$x < -30],
-                                                 occ_filtered$gbifid[occ_filtered$species=='Scleria brownii' & occ_filtered$x > -100 & occ_filtered$x < 0],
-                                                 occ_filtered$gbifid[occ_filtered$species=='Scleria dregeana' & occ_filtered$x < 0],
-                                                 occ_filtered$gbifid[occ_filtered$species=='Scleria levis' & occ_filtered$x < 0],
-                                                 occ_filtered$gbifid[occ_filtered$species=='Scleria distans' & occ_filtered$x > 100],
-                                                 occ_filtered$gbifid[occ_filtered$species=='Scleria novae-hollandiae' & occ_filtered$x < 75],
-                                                 occ_filtered$gbifid[occ_filtered$species=='Scleria parvula' & occ_filtered$x < 60],
-                                                 occ_filtered$gbifid[occ_filtered$species=='Scleria pauciflora' & occ_filtered$y < 0],
-                                                 occ_filtered$gbifid[occ_filtered$species=='Scleria rugosa' & occ_filtered$x < 0]
+occ_data <- occ_data %>% filter(!(gbifid %in% c( occ_data$gbifid[occ_data$species=='Scleria gaertneri' & occ_data$x > 100],
+                                                 occ_data$gbifid[occ_data$species=='Scleria distans' & occ_data$x > 100],
+                                                 occ_data$gbifid[occ_data$species=='Scleria terrestris' & occ_data$x < 0],
+                                                 occ_data$gbifid[occ_data$species=='Scleria racemosa' & occ_data$x < -30],
+                                                 occ_data$gbifid[occ_data$species=='Scleria brownii' & occ_data$x > -100 & occ_data$x < 0],
+                                                 occ_data$gbifid[occ_data$species=='Scleria dregeana' & occ_data$x < 0],
+                                                 occ_data$gbifid[occ_data$species=='Scleria levis' & occ_data$x < 0],
+                                                 occ_data$gbifid[occ_data$species=='Scleria distans' & occ_data$x > 100],
+                                                 occ_data$gbifid[occ_data$species=='Scleria novae-hollandiae' & occ_data$x < 75],
+                                                 occ_data$gbifid[occ_data$species=='Scleria parvula' & occ_data$x < 60],
+                                                 occ_data$gbifid[occ_data$species=='Scleria pauciflora' & occ_data$y < 0],
+                                                 occ_data$gbifid[occ_data$species=='Scleria rugosa' & occ_data$x < 0]
                                                  ) ) )
 
 
