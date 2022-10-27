@@ -10,7 +10,7 @@ source('scripts/traits.R')
 
 
 # world map
-wrld <- ne_countries(scale = 110, type = "countries", continent = NULL, country = NULL, geounit = NULL, sovereignty = NULL, returnclass = "sf") %>% terra::vect() %>% terra::crop(ext(-180,180,-50,70)) %>% terra::project('epsg:8857')
+wrld <- ne_countries(scale = 110, type = "countries", continent = NULL, country = NULL, geounit = NULL, sovereignty = NULL, returnclass = "sf") %>% terra::vect() %>% terra::crop(ext(-180,180,-50,70))
 
 # base map
 RAST1_lonlat <- rast('C:/Users/user/Desktop/wc2.1_5m_bio/wc2.1_5m_bio_1.tif')
@@ -20,7 +20,12 @@ RAST1_8857 <- RAST1_lonlat %>% terra::project('epsg:8857') %>% # equal area, see
   terra::aggregate(fact=18.26152, fun='min') %>% terra::crop(wrld, mask=T)
 terra::cellSize(RAST1_8857) # 100 km aprox
 
+# biomes map
+wwf_biomes <- terra::vect('C:/Users/user/Desktop/WWF_regions/wwf_terr_ecos.shp') %>% aggregate(by='BIOME') %>%
+  simplifyGeom(tolerance=0.2) %>% terra::project('epsg:8857') %>% terra::crop(wrld, mask=T)
+
 plot(RAST1_8857, legend=F); lines(wrld)
+plot(RAST1_8857, legend=F); lines(wwf_biomes, col='gray28')
 
 
 # DATA IMPORT AND PIXEL CALCULATION ####
@@ -30,7 +35,12 @@ EDGE2_list <- read.csv("results/EDGE2_list.csv") # data
 EcoDGE2_list <- read.csv("results/EcoDGE2_list.csv")
 
 # occurrences
-scleria_occ <- read.csv("results/occ_filtered.txt", sep="") %>% dplyr::select(species,y,x)
+scleria_occ <- read.csv("results/occ_filtered.txt", sep="")
+scleria_occ <- merge(scleria_occ, scleria_iucn[,c('species','section','subgenus')])
+str(scleria_occ)
+scleria_occ$subgenus <- as.factor(scleria_occ$subgenus)
+scleria_occ$section <- as.factor(scleria_occ$section)
+
 EDGE2_list$species[!(EDGE2_list$species %in% scleria_occ$species)] # check missing species
 p_scleria_occ <- vect(scleria_occ, geom=c('x','y'), 'epsg:4326') %>% terra::project('epsg:8857') # points file
 
@@ -47,8 +57,11 @@ scleria_occ$y <- terra::extract(RAST1_8857, p_scleria_occ, xy=T, cell=T)$y
 
 # plot observations
 par(mfrow=c(1,1))
-plot(RAST1_8857, col='lightgreen', legend=F); lines(wrld); points(p_scleria_occ)
-
+plot(RAST1_8857, col='azure2', legend=F); lines(wwf_biomes, col='gray28'); points(p_scleria_occ, col=p_scleria_occ$subgenus)
+legend( x="topright", 
+        col=c("cornflowerblue","hotpink2","green3","black"), 
+        legend=c('Trachylomia','Hypoporum','Scleria','Browniae'), lwd=0, lty=0, bty="n",
+        pch=15)
 
 
 # for each cell, I compute: richness, Faith, MPD, MFD, mean_EDGE, mean_EcoDGE, sum_EDGE, sum_EcoDGE
@@ -227,31 +240,83 @@ plot(n_list ~ richness, ylab='Nº listed species', xlab='Richness', main='EcoDGE
 plot(n_main ~ richness, ylab='Nº species main list', xlab='Richness', main='EcoDGE2', data=EcoDGE_countries)
 
 
-# countries maps
+# prepare results to merge with world dataframe
 colnames(EDGE_countries)[colnames(EDGE_countries)=='country'] <- 'region'
 colnames(EcoDGE_countries)[colnames(EcoDGE_countries)=='country'] <- 'region'
-
-world <- map_data("world")
-world <- merge(world, EDGE_countries, by="region", all.x=T)
-world <- world %>% arrange(group, order)
 
 # match names of ne_countries and map_world for reference
 EDGE_countries$region[!(EDGE_countries$region %in% world$region)] <- c('USA','Dominican Republic','Ivory Coast','Central African Republic',  'Democratic Republic of the Congo','Laos','Trinidad','Republic of Congo','Solomon Islands','Equatorial Guinea','South Korea')
 EcoDGE_countries$region[!(EcoDGE_countries$region %in% world$region)] <- c('USA','Dominican Republic','Ivory Coast','Central African Republic',  'Democratic Republic of the Congo','Laos','Trinidad','Republic of Congo','Solomon Islands','Equatorial Guinea','South Korea')
 
+# replace 0 with NA
+EDGE_countries[EDGE_countries==0] <- NA
+EcoDGE_countries[EcoDGE_countries==0] <- NA
+
+
+# EDGE2: merge with world dataframe
+world_EDGE <- map_data("world")
+world_EDGE$region[world_EDGE$subregion=='Alaska'] <- 'NA' # remove Alaska
+world_EDGE <- merge(world_EDGE, EDGE_countries, by="region", all.x=T)
+world_EDGE <- world_EDGE %>% arrange(group, order)
+
 # maps
-g1 <- ggplot(aes(x=long, y=lat, group=group, fill=n_list), data=world) +
+g1 <- ggplot(aes(x=long, y=lat, group=group, fill=richness), data=world_EDGE) +
   geom_polygon() + theme_bw() +
   geom_polygon(color="white", size=0.2) +
-  labs(x='', y='') +
+  labs(x='', y='') + ggtitle('Richness') +
   scale_fill_viridis('', option='inferno', na.value = "gray90")
 
-g2 <- ggplot(aes(x=long, y=lat, group=group, fill=top25), data=world) +
+g2 <- ggplot(aes(x=long, y=lat, group=group, fill=sum_EDGE), data=world_EDGE) +
   geom_polygon() + theme_bw() +
   geom_polygon(color="white", size=0.2) +
-  labs(x='', y='') +
+  labs(x='', y='') + ggtitle('Sum EDGE2') +
   scale_fill_viridis('', option='inferno', na.value = "gray90")
 
-ggarrange(g2, g1, nrow=2, labels=c('A','B'))
+g3 <- ggplot(aes(x=long, y=lat, group=group, fill=n_list), data=world_EDGE) +
+  geom_polygon() + theme_bw() +
+  geom_polygon(color="white", size=0.2) +
+  labs(x='', y='') + ggtitle('Nº listed species EDGE2') +
+  scale_fill_viridis('', option='inferno', na.value = "gray90")
 
+g4 <- ggplot(aes(x=long, y=lat, group=group, fill=n_main), data=world_EDGE) +
+  geom_polygon() + theme_bw() +
+  geom_polygon(color="white", size=0.2) +
+  labs(x='', y='') + ggtitle('Nº species main list EDGE2') +
+  scale_fill_viridis('', option='inferno', na.value = "gray90")
+
+ggarrange(g1, g2, g3, g4, nrow=2, ncol=2, labels=c('A','B','C','D'))
+
+
+# EcoDGE2: merge with world dataframe
+world_EcoDGE <- map_data("world")
+world_EcoDGE$region[world_EcoDGE$subregion=='Alaska'] <- 'NA' # remove Alaska
+world_EcoDGE <- merge(world_EcoDGE, EcoDGE_countries, by="region", all.x=T)
+world_EcoDGE <- world_EcoDGE %>% arrange(group, order)
+
+# maps
+g1 <- ggplot(aes(x=long, y=lat, group=group, fill=richness), data=world_EcoDGE) +
+  geom_polygon() + theme_bw() +
+  geom_polygon(color="white", size=0.2) +
+  labs(x='', y='') + ggtitle('Richness') +
+  scale_fill_viridis('', option='inferno', na.value = "gray90")
+
+g2 <- ggplot(aes(x=long, y=lat, group=group, fill=sum_EDGE), data=world_EcoDGE) +
+  geom_polygon() + theme_bw() +
+  geom_polygon(color="white", size=0.2) +
+  labs(x='', y='') + ggtitle('Sum EcoDGE2') +
+  scale_fill_viridis('', option='inferno', na.value = "gray90")
+
+g3 <- ggplot(aes(x=long, y=lat, group=group, fill=n_list), data=world_EcoDGE) +
+  geom_polygon() + theme_bw() +
+  geom_polygon(color="white", size=0.2) +
+  labs(x='', y='') + ggtitle('Nº listed species EcoDGE2') +
+  scale_fill_viridis('', option='inferno', na.value = "gray90")
+
+g4 <- ggplot(aes(x=long, y=lat, group=group, fill=n_main), data=world_EcoDGE) +
+  geom_polygon() + theme_bw() +
+  geom_polygon(color="white", size=0.2) +
+  labs(x='', y='') + ggtitle('Nº species main list EcoDGE2') +
+  scale_fill_viridis('', option='inferno', na.value = "gray90")
+
+ggarrange(g1, g2, g3, g4, nrow=2, ncol=2, labels=c('A','B','C','D'))
 
