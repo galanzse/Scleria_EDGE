@@ -10,19 +10,20 @@ source('scripts/traits.R')
 
 
 # world map
-wrld <- ne_countries(scale = 110, type = "countries", continent = NULL, country = NULL, geounit = NULL, sovereignty = NULL, returnclass = "sf") %>% terra::vect() %>% terra::crop(ext(-180,180,-50,70))
+wrld <- ne_countries(scale = 110, type = "countries", continent = NULL, country = NULL, geounit = NULL, sovereignty = NULL, returnclass = "sf") %>%
+  terra::vect() %>% terra::crop(ext(-180,180,-50,70)) %>% terra::project('epsg:8857')
 
 # base map
 RAST1_lonlat <- rast('C:/Users/user/Desktop/wc2.1_5m_bio/wc2.1_5m_bio_1.tif')
 RAST1_lonlat[!is.na(RAST1_lonlat)] <- 0
 
 RAST1_8857 <- RAST1_lonlat %>% terra::project('epsg:8857') %>% # equal area, see https://epsg.io/8857
-  terra::aggregate(fact=18.26152, fun='min') %>% terra::crop(wrld, mask=T)
+  terra::aggregate(fact=18.26152, fun='min') %>% terra::crop(wrld)
 terra::cellSize(RAST1_8857) # 100 km aprox
 
 # biomes map
 wwf_biomes <- terra::vect('C:/Users/user/Desktop/WWF_regions/wwf_terr_ecos.shp') %>% aggregate(by='BIOME') %>%
-  simplifyGeom(tolerance=0.2) %>% terra::project('epsg:8857') %>% terra::crop(wrld, mask=T)
+  terra::project('epsg:8857') %>% terra::crop(RAST1_8857)
 
 plot(RAST1_8857, legend=F); lines(wrld)
 plot(RAST1_8857, legend=F); lines(wwf_biomes, col='gray28')
@@ -62,6 +63,33 @@ legend( x="topright",
         col=c("cornflowerblue","hotpink2","green3","black"), 
         legend=c('Trachylomia','Hypoporum','Scleria','Browniae'), lwd=0, lty=0, bty="n",
         pch=15)
+
+
+# extract biome information
+biome_rast <- rasterize(x=wwf_biomes, y= disagg(RAST1_8857, 10), field='BIOME')
+biome_rast[biome_rast>14] <- NA
+biome_rast <- as.factor(biome_rast)
+levels(biome_rast)[[1]]['label'] <- c('Tropical & Subtropical Moist Broadleaf Forests',
+                                      'Tropical & Subtropical Dry Broadleaf Forests',
+                                      'Tropical & Subtropical Coniferous Forests',
+                                      'Temperate Broadleaf & Mixed Forests',
+                                      'Temperate Conifer Forests',
+                                      'Boreal Forests/Taiga',
+                                      'Tropical & Subtropical Grasslands, Savannas & Shrublands',
+                                      'Temperate Grasslands, Savannas & Shrublands',
+                                      'Flooded Grasslands & Savannas',
+                                      'Montane Grasslands & Shrublands',
+                                      'Tundra',
+                                      'Mediterranean Forests, Woodlands & Scrub',
+                                      'Deserts & Xeric Shrublands',
+                                      'Mangroves')
+plot(biome_rast)
+
+# extract
+scleria_occ$biome <- terra::extract(biome_rast, p_scleria_occ)$label
+t1 <- table(scleria_occ$subgenus, scleria_occ$biome)/rowSums(table(scleria_occ$subgenus, scleria_occ$biome))
+t1 <- t1 %>% as.data.frame() %>% pivot_wider(names_from=Var2, values_from=Freq)
+write.table(t1, 'results/subgenus_x_biome.txt')
 
 
 # for each cell, I compute: richness, Faith, MPD, MFD, mean_EDGE, mean_EcoDGE, sum_EDGE, sum_EcoDGE
@@ -228,16 +256,24 @@ EcoDGE_countries <- EcoDGE_countries %>% filter(country!='Canada')
 # save
 write.table(EDGE_countries, 'results/EDGE_countries.txt')
 write.table(EcoDGE_countries, 'results/EcoDGE_countries.txt')
+ind_x_countries <- merge(x=EDGE_countries, y=EcoDGE_countries, by=c('country','richness'))
+colnames(ind_x_countries) <- c("country","richness","sum_EDGE","median_EDGE","n_list_EDGE","n_main_EDGE","sum_EcoDGE","median_EcoDGE","n_list_EcoDGE","n_main_EcoDGE")
+write.table(ind_x_countries, 'results/ind_x_countries.txt')
+
 
 
 # exploratory
-par(mfrow=c(2,3), mar=c(5,5,5,5))
+par(mfrow=c(2,5), mar=c(5,5,5,5))
 plot(n_main ~ n_list, ylab='Nº species main list', xlab='Nº listed species', main='EDGE2', data=EDGE_countries)
 plot(n_list ~ richness, ylab='Nº listed species', xlab='Richness', main='EDGE2', data=EDGE_countries)
 plot(n_main ~ richness, ylab='Nº species main list', xlab='Richness', main='EDGE2', data=EDGE_countries)
+plot(log(sum_EDGE) ~ log(sum_EcoDGE), data=ind_x_countries)
+plot(log(median_EDGE) ~ log(median_EcoDGE), data=ind_x_countries)
 plot(n_main ~ n_list, ylab='Nº species main list', xlab='Nº listed species', main='EcoDGE2', data=EcoDGE_countries)
 plot(n_list ~ richness, ylab='Nº listed species', xlab='Richness', main='EcoDGE2', data=EcoDGE_countries)
 plot(n_main ~ richness, ylab='Nº species main list', xlab='Richness', main='EcoDGE2', data=EcoDGE_countries)
+plot(n_list_EDGE ~ n_list_EcoDGE, data=ind_x_countries)
+plot(n_main_EDGE ~ n_main_EcoDGE, data=ind_x_countries)
 
 
 # prepare results to merge with world dataframe
