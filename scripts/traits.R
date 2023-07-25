@@ -1,123 +1,108 @@
 
-library(tidyverse)
-library(GGally)
-library(readxl)
-library(missMDA)
-library(ape)
-library(cluster)
-source('scripts/phylogeny.R') # need traits fro all species with molecular sequences (3 yet NE)
+
+# IMPORT FUNCTIONAL TRAITS
+# EXPLORE RELATIONSHIP BETWEEN LITERAUTRE AND HERBARIUM TRAITS
+# AND COMPUTE LEAF AREA AND NUTLET VOLUME
+
+library(tidyverse); library(readxl); library(GGally)
+library(cluster); library(ape)
 
 
-# import trait data
-traits_isabel <- read_excel("data/traits_Isabel.xlsx")
-traits_javi <- read_excel("data/traits.xlsx")
-
-# check my species are in Isabel's dataset
-table(traits_isabel$WCVP_name %in% traits_javi$species)
-traits_isabel$WCVP_name[!(traits_isabel$WCVP_name %in% traits_javi$species)]
-
-# merge both datasets
-colnames(traits_isabel)[colnames(traits_isabel)=='WCVP_name'] <- 'species'
-traits <- merge(traits_javi, traits_isabel, by='species', all.x=T)
-rm(traits_isabel, traits_javi)
-
-# filter species in scleria_iucn
-table(scleria_iucn$species %in% traits$species)
-traits <- traits %>% filter(species %in% scleria_iucn$species)
-
-# check NAs per column
-colSums(is.na(traits))[order(colSums(is.na(traits)))]
-
-# remove traits with many NAs or very conserved across the phylonegy (see Bauters et al. 2016)
-traits <- traits[,!(colnames(traits) %in% c('pollination - animal','pollination','bat rough generic score yes/no',
-                                            'source','photosynthesis_C13','Family','climate_description',
-                                            'photosynthesis_C13','phytosynthesis_type','geographic_area',
-                                            'halophyte','plant_name_id','open_closed_habitat','epiphyte_lithophyte',
-                                            'wet_habitat','annual','spikelet','hypogynium','leaf',
-                                            'lifeform_description'))]
-
-str(traits)
-traits$inflorescence <- as.factor(traits$inflorescence)
-traits$life_form <- as.factor(traits$life_form)
-
-# log trans
-traits$log.height <- log(traits$height) # height and leaf width have right-skewed distributions
-traits$log.leaf_width <- log(traits$leaf_width)
-
-# correlation
-# ggpairs(traits[,c('log.height','leaf_length','log.leaf_width','nutlet_length','nutlet_width','nutlet_mass')])
+herbarium_traits <- read_excel("data/Kew_MNHNP_vouchers.xlsx", sheet='trait_data') %>% # import herbarium data
+  dplyr::select(-catalogNumber, -stem_width, -vernacular, -uses, -region)
+str(herbarium_traits); length(unique(herbarium_traits$scientific_name))
 
 
-# impute nutlet traits using a local regression and length as predictor
-lm_nut <- loess(nutlet_width ~ nutlet_length, data=traits, span=1)
-ggplot(aes(y=nutlet_width, x=nutlet_length), data=traits) +
-  geom_point() + geom_smooth(method='loess', span=1)
-width_pred <- predict(lm_nut, newdata=traits)
-for (i in 1:nrow(traits)) {
-  if (is.na(traits$nutlet_width[i])) { traits$nutlet_width[i] <- width_pred[i] }
-}
-
-# impute other cuantitative traits using PCA
-traits[,c('log.height','leaf_length','log.leaf_width','nutlet_length','nutlet_width')] <- imputePCA(traits[,c('log.height','leaf_length','log.leaf_width','nutlet_length','nutlet_width')], ncp=2, scale=TRUE)$completeObs
-
-# impute qualitative traits using mode
-sp_im <- traits %>% filter(is.na(inflorescence) | is.na(life_form)) %>% dplyr::select(species) %>% deframe()
-for (sp in sp_im) {
-  df_sp <-traits %>% filter(species==sp)
-  if (is.na(traits$inflorescence[traits$species==sp])) {
-    traits$inflorescence[traits$species==sp] <- traits$inflorescence[traits$section==df_sp$section] %>% table() %>% which.max() %>% names()
-  }
-  if (is.na(traits$life_form[traits$species==sp])) {
-    traits$life_form[traits$species==sp] <- traits$life_form[traits$section==df_sp$section] %>% table() %>% which.max() %>% names()
-  }
-}
+literature_traits <- read_excel("data/Kew_MNHNP_vouchers.xlsx", sheet='traits_literature') %>% # literature traits
+  dplyr::select(-species, -nutlet_weight, -spikelet, -hypogynium, -inflorescence, -leaf, -notes)
 
 
-# correlation nutlet size ~ mass
-ggplot(aes(y=nutlet_mass, x=nutlet_length), data=traits) + 
-  geom_point() +theme_classic() +
-  ylim(0,80) + xlim(0,5) +
-  geom_smooth(method='loess', span=4, se=F) +
-  labs(x='Nutlet length (mm)', y='1000 seed weight (g)')
+herbarium_means <- herbarium_traits %>% group_by(scientific_name) %>% # compare literature and herbarium traits
+  summarise(h.height=mean(height, na.rm=T),
+            h.blade_length=mean(blade_length, na.rm=T),
+            h.blade_width=mean(blade_width, na.rm=T),
+            h.nutlet_length=mean(nutlet_length, na.rm=T),
+            h.nutlet_width=mean(nutlet_width, na.rm=T))
+
+
+comp_traits <- merge(herbarium_means, literature_traits, by='scientific_name')
+
+# par(mfrow=c(2,3))
+# plot(log(comp_traits$h.height), log(comp_traits$height),
+#      main='log(height (cm))', xlab='herbarium', ylab='literature'); abline(0,1)
+# plot(comp_traits$h.blade_length, comp_traits$blade_length,
+#      main='blade_length (cm)', xlab='herbarium', ylab='literature'); abline(0,1)
+# plot(comp_traits$h.blade_width, comp_traits$blade_width,
+#      main='blade_width (cm)', xlab='herbarium', ylab='literature'); abline(0,1)
+# plot(comp_traits$h.nutlet_length, comp_traits$nutlet_length,
+#      main='nutlet_length (mm)', xlab='herbarium', ylab='literature'); abline(0,1)
+# plot(comp_traits$h.nutlet_width, comp_traits$nutlet_width,
+#      main='nutlet_width (mm)', xlab='herbarium', ylab='literature'); abline(0,1)
 
 
 
-# create dendrogram with all considered traits: see Griffith et al 2022 (Functional Ecology) ####
+# lets merge species from the literature into the herbarium dataset
+herbarium_traits$scientific_name[which(!(herbarium_traits$scientific_name %in% literature_traits$scientific_name))]
+literature_traits$scientific_name[which(!(literature_traits$scientific_name %in% herbarium_traits$scientific_name))]
 
-# copy data
-s_traits <- traits
-rownames(s_traits) <- s_traits$species
+herbarium_traits <- literature_traits %>%
+  dplyr::select(colnames(herbarium_traits)) %>%
+  bind_rows(herbarium_traits)
 
-# traits to use
-v_traits <- c("inflorescence","life_form","leaf_length","nutlet_length","nutlet_width","log.height","log.leaf_width")
-s_traits <- s_traits[,v_traits]
-str(s_traits)
 
-# scale continuous variables
-s_traits[,3:7] <- scale(s_traits[,3:7])
+# nutlet_volume	= 4/3π length*width^2	(ellipsoid)			
+herbarium_traits$nutlet_volume <- 4/3 * pi * herbarium_traits$nutlet_length * herbarium_traits$nutlet_width^2	
 
-# distance matrix + clustering UPGMA
-daisy.mat <- daisy(s_traits[,v_traits], metric="gower") %>% as.dist()
-dend1 <- hclust(daisy.mat, method="average") # UPGMA
-dend1.phy <- as.phylo(dend1) # as.phylo
+# blade_area	= π length*width (ellipse)			
+herbarium_traits$blade_area <- pi * herbarium_traits$blade_length * herbarium_traits$blade_width
 
-mycat <- scleria_iucn$category[order(match(scleria_iucn$species,dend1.phy$tip.label))]
-mycat <- factor(mycat)
-mycol <- c("azure4","black","forestgreen","yellow","orange2","red")[mycat]
 
-par(mar=c(1,1,1,0))
-plot(as.phylo(dend1.phy), tip.color=mycol, cex=0.7)
+# correlation nutlet volume and weight
+nutlet_weight <- read_excel("data/Kew_MNHNP_vouchers.xlsx", sheet='nutlet_weight')
 
-nr <- 100
-imputed_dendrograms <- list()
-for (r in 1:nr) { # randomly drop 1-3 traits per run
-  ntr <- sample(4:6,1)
-  dend.n <- s_traits %>% dplyr::select(sample(v_traits, ntr)) %>% daisy(metric="gower") %>% as.dist()
-  dend.n <- hclust(dend.n, method="average") # UPGMA
-  imputed_dendrograms[[r]] <- as.phylo(dend.n)
-  print(r)
-}
+nutlet_means <- herbarium_traits %>% group_by(scientific_name) %>%
+  summarise(nutlet_volume=mean(nutlet_volume, na.rm=T)) %>%
+  dplyr::select(scientific_name, nutlet_volume)
 
-save(imputed_dendrograms, file="results/imputed_dendrograms.RData")
+nutlet_means <- merge(nutlet_weight[c('scientific_name','nutlet_weight')], nutlet_means)
 
-rm(s_traits, dend.n, ntr)
+# plot(nutlet_means$nutlet_volume, nutlet_means$nutlet_weight,
+#      main='nutlet', xlab='volume (mm3)', ylab='weight (mg)')
+# abline(lm(nutlet_means$nutlet_weight ~ nutlet_means$nutlet_volume))
+
+
+
+# LHS Scleria
+LHS_means <- herbarium_traits %>% dplyr::select(scientific_name, height, blade_area, nutlet_volume) %>%
+  group_by(scientific_name) %>%
+  summarise(height=mean(height, na.rm=T),
+            blade_area=mean(blade_area, na.rm=T),
+            nutlet_volume=mean(nutlet_volume, na.rm=T))
+  
+LHS_means <- merge(literature_traits[,c('subgenus','section','scientific_name','life_form')],
+                  LHS_means, by='scientific_name')
+
+LHS_raw <- merge(literature_traits[,c('subgenus','section','scientific_name','life_form')],
+                 herbarium_traits[,c('scientific_name', 'height', 'blade_area', 'nutlet_volume')], by='scientific_name')
+
+write.table(LHS_means, 'results/LHS_means_final.txt') # save results
+write.table(LHS_raw, 'results/LHS_raw_final.txt') # save results
+rm(comp_traits, herbarium_means, herbarium_traits, literature_traits, nutlet_weight, nutlet_means)
+
+
+long_LHS_data <- LHS_data %>% pivot_longer(5:7, names_to='trait', values_to='value')
+
+ggplot(aes(x=subgenus, y=value), data=long_LHS_data) +
+  geom_boxplot() +
+  facet_wrap(.~trait, scales="free") +
+  theme_bw()
+  
+# library(rgl)
+# mycolors <- c('brown4', 'green', 'yellow', 'blue')
+# LHS_data$color <- mycolors[ as.numeric(as.factor(LHS_data$subgenus)) ]
+# 
+# plot3d( 
+#   x=log(LHS_data$height), y=log(LHS_data$blade_area), z=log(LHS_data$nutlet_volume), 
+#   xlab="height", ylab="blade_area", zlab="nutlet_volume",
+#   col=LHS_data$color)
+  

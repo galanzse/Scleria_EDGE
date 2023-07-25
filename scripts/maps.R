@@ -90,7 +90,9 @@ scleria_occ$biome <- terra::extract(biome_rast, p_scleria_occ)$label
 t1 <- table(scleria_occ$subgenus, scleria_occ$biome)/rowSums(table(scleria_occ$subgenus, scleria_occ$biome))
 t1 <- t1 %>% as.data.frame() %>% pivot_wider(names_from=Var2, values_from=Freq)
 write.table(t1, 'results/subgenus_x_biome.txt')
-
+t1 <- table(scleria_occ$section, scleria_occ$biome)/rowSums(table(scleria_occ$section, scleria_occ$biome))
+t1 <- t1 %>% as.data.frame() %>% pivot_wider(names_from=Var2, values_from=Freq)
+write.table(t1, 'results/section_x_biome.txt')
 
 # for each cell, I compute: richness, Faith, MPD, MFD, mean_EDGE, mean_EcoDGE, sum_EDGE, sum_EcoDGE
 
@@ -281,13 +283,14 @@ colnames(EDGE_countries)[colnames(EDGE_countries)=='country'] <- 'region'
 colnames(EcoDGE_countries)[colnames(EcoDGE_countries)=='country'] <- 'region'
 
 # match names of ne_countries and map_world for reference
-EDGE_countries$region[!(EDGE_countries$region %in% world$region)] <- c('USA','Dominican Republic','Ivory Coast','Central African Republic',  'Democratic Republic of the Congo','Laos','Trinidad','Republic of Congo','Solomon Islands','Equatorial Guinea','South Korea')
-EcoDGE_countries$region[!(EcoDGE_countries$region %in% world$region)] <- c('USA','Dominican Republic','Ivory Coast','Central African Republic',  'Democratic Republic of the Congo','Laos','Trinidad','Republic of Congo','Solomon Islands','Equatorial Guinea','South Korea')
+world <- map_data("world")
+temp_c <- c('Ivory Coast','Democratic Republic of the Congo','USA','Republic of Congo','Equatorial Guinea','Trinidad','Central African Republic','Dominican Republic','Laos','Solomon Islands','South Korea')
+EDGE_countries$region[!(EDGE_countries$region %in% world$region)] <- temp_c
+EcoDGE_countries$region[!(EcoDGE_countries$region %in% world$region)] <- temp_c
 
 # replace 0 with NA
 EDGE_countries[EDGE_countries==0] <- NA
 EcoDGE_countries[EcoDGE_countries==0] <- NA
-
 
 # EDGE2: merge with world dataframe
 world_EDGE <- map_data("world")

@@ -17,6 +17,63 @@ prob_pext <- GE.2.calc(pext)
 str(prob_pext)
 
 
+
+# 129 species need to be imputed in their sections (of which 19 we do not know where should be imputed)
+table(scleria_iucn$scientific_name[!is.na(scleria_iucn$section)] %in% scleria_tree$tip.label)
+scleria_iucn <- scleria_iucn %>% subset(!is.na(section))
+
+# for this, I will substitute the genus by the section
+scleria_iucn$sectxspp <- paste(scleria_iucn$section, str_split(scleria_iucn$scientific_name, pattern=" ", simplify = TRUE)[,2], sep=' ')
+
+for (i in scleria_tree$tip.label) {
+  scleria_tree$tip.label[scleria_tree$tip.label==i] <- scleria_iucn$sectxspp[scleria_iucn$scientific_name==i]
+}
+
+
+
+# vector of species to impute
+v_sppximp <- scleria_iucn$sectxspp[which(!(scleria_iucn$sectxspp %in% scleria_tree$tip.label))]
+
+# I impute the species nr times and save the results to assess the impact of imputation on the results later on
+# check the package Felix suggested
+nr <- 100
+
+imputed_trees <- list()
+for (s in 1:nr) {
+  imputed_trees[[s]] <- congeneric.impute(scleria_tree, species=v_sppximp, split=" ")
+  print(s)
+}
+
+write.table(scleria_iucn, 'results/scleria_iucn.txt')
+save(imputed_trees, file="results/imputed_trees.RData")
+
+rm(tip2, not_assessed)
+
+
+# plot an imputed tree
+scleria_imputed <- imputed_trees[[1]]
+scleria_imputed$tip.label <- scleria_iucn$species[order(match(scleria_iucn$sectxspp, scleria_imputed$tip.label))] # change labels
+
+mycat <- scleria_iucn$category[order(match(scleria_iucn$species,scleria_imputed$tip.label))]
+mycat <- factor(mycat)
+mycol <- c("azure4","black","forestgreen","yellow","orange2","red")[mycat]
+
+mycat2 <- scleria_iucn$in_tree[order(match(scleria_iucn$species,scleria_imputed$tip.label))]
+mycat2 <- factor(mycat2)
+mycex <- c(0.4,0.7)[mycat2]
+
+par(mar=c(1,1,1,0))
+plot(scleria_imputed, tip.color=mycol, cex=mycex)
+
+
+
+
+
+
+
+
+
+
 # species x pext dataframe to fill in each interaction
 spp_pext <- scleria_iucn[,c('sectxspp','category')]
 colnames(spp_pext) <- c('species','category')

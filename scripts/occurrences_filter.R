@@ -34,7 +34,10 @@ pts_scleria <- vect(occ_scleria, geom=c("x","y")) # redo points dataframe
 
 regions <- terra::extract(x=wrld_simpl, y=pts_scleria) %>% dplyr::select(FIPS, ISO2, ISO3) # extract regions
 occ_scleria <- cbind(occ_scleria, regions)
+
 occ_scleria <- occ_scleria %>% subset(!is.na(ISO2)) # remove points outside polygons
+pts_scleria <- vect(occ_scleria, geom=c("x","y")) # redo points objects
+crs(pts_scleria) <- '+proj=longlat +ellps=WGS84 +towgs84=0,0,0,0,0,0,0 +no_defs'
 
 unique(occ_scleria$species)[!(unique(occ_scleria$species) %in% scl_countries$scientific_name)]
 
@@ -76,8 +79,8 @@ for (s in unique(occ_scleria$species)) {
   # sampling bias: select one observation per 2.15km2 cell
   ss_df <- count_temp %>% group_by(cell) %>% slice_sample(n=1)
   
-  # climatic filter only for species with more than X observations
-  if (nrow(ss_df) > 10) {
+  # climatic filter: only for species with more than X observations
+  if (nrow(ss_df) > 5) {
     ss_df <- ss_df %>% filter(MAT > boxplot.stats(ss_df$MAT, coef=2)$stats[1] & MAT < boxplot.stats(ss_df$MAT, coef=2)$stats[5] &
                                 AP > boxplot.stats(ss_df$AP, coef=2)$stats[1] & AP < boxplot.stats(ss_df$AP, coef=2)$stats[5] )
   }
@@ -88,10 +91,13 @@ for (s in unique(occ_scleria$species)) {
   print(s)
 }
 
-occ_scleria2 <- do.call(rbind, occ_scleria2) # paste list
+occ_scleria_filt <- do.call(rbind, occ_scleria2) # paste list
+pts_scleria_filt <- vect(occ_scleria_filt, geom=c("x","y")) # redo points dataframe
 
-length(unique(occ_scleria2$species))
-unique(occ_scleria$species)[!(unique(occ_scleria$species) %in% unique(occ_scleria2$species))] # check excluded species
+length(unique(occ_scleria_filt$species))
+unique(occ_scleria$species)[!(unique(occ_scleria$species) %in% unique(occ_scleria_filt$species))] # check excluded species
 
 
-write.table(occ_scleria, 'results/occurrences_final.txt') # save results
+write.table(occ_scleria_filt, 'results/occ_scleria_filt.txt') # save results
+rm(AP, MAT, GRD, bot_countries, scl_countriescount_temp, occ_scleria, occ_scleria2, regions, spp_temp, ss_df, s, pts_scleria)
+
