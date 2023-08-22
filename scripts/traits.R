@@ -79,7 +79,7 @@ LHS_means <- herbarium_traits %>% dplyr::select(scientific_name, height, blade_a
             blade_area=mean(blade_area, na.rm=T),
             nutlet_volume=mean(nutlet_volume, na.rm=T))
   
-LHS_means <- merge(literature_traits[,c('subgenus','section','scientific_name','life_form')],
+LHS_means <- merge(literature_traits[,c('subgenus','section','scientific_name','life_form','life_form_simp')],
                   LHS_means, by='scientific_name')
 
 LHS_raw <- merge(literature_traits[,c('subgenus','section','scientific_name','life_form')],
@@ -89,20 +89,3 @@ write.table(LHS_means, 'results/LHS_means_final.txt') # save results
 write.table(LHS_raw, 'results/LHS_raw_final.txt') # save results
 rm(comp_traits, herbarium_means, herbarium_traits, literature_traits, nutlet_weight, nutlet_means)
 
-
-long_LHS_data <- LHS_data %>% pivot_longer(5:7, names_to='trait', values_to='value')
-
-ggplot(aes(x=subgenus, y=value), data=long_LHS_data) +
-  geom_boxplot() +
-  facet_wrap(.~trait, scales="free") +
-  theme_bw()
-  
-# library(rgl)
-# mycolors <- c('brown4', 'green', 'yellow', 'blue')
-# LHS_data$color <- mycolors[ as.numeric(as.factor(LHS_data$subgenus)) ]
-# 
-# plot3d( 
-#   x=log(LHS_data$height), y=log(LHS_data$blade_area), z=log(LHS_data$nutlet_volume), 
-#   xlab="height", ylab="blade_area", zlab="nutlet_volume",
-#   col=LHS_data$color)
-  

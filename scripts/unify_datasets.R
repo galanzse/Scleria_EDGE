@@ -3,32 +3,31 @@
 # UNIFY TRAITS, PHYLOGENY, RED_LIST AND OCCURRENCE DATASETS FOR POSTERIOR ANALYSES
 
 library(tidyverse); library(readxl)
-
 library(ape); library(phytools); library(pez)
 # https://cran.r-project.org/web/packages/ape/vignettes/DrawingPhylogenies.pdf
 
 
+# import valid species names
+scleria_taxa <- read_excel("data/Kew_MNHNP_vouchers.xlsx", sheet = "traits_literature") %>%
+  dplyr::select(subgenus, section, scientific_name)
+
 
 # import traits
-LHS_means_final <- read.csv("C:/Users/user/OneDrive/PUBLICACIONES/SCLERIA/Scleria_EDGE/results/LHS_means_final.txt", sep="")
+LHS_means_final <- read.csv("results/LHS_means_final.txt", sep="")
+
 
 # import occurrences
-occ_scleria_filt <- read.csv("C:/Users/user/OneDrive/PUBLICACIONES/SCLERIA/Scleria_EDGE/results/occ_scleria_filt.txt", sep="") %>%
-  dplyr::select(species, x, y)
-
-# We will work with species with known locations
-table(occ_scleria_filt$species %in% LHS_means_final$scientific_name)
-LHS_means_final <- LHS_means_final %>% subset(scientific_name %in% occ_scleria_filt$species)
+occ_scleria_filt <- read.csv("results/occ_scleria_filt.txt", sep="")
+colnames(occ_scleria_filt)[colnames(occ_scleria_filt)=='species'] <- 'scientific_name'
 
 
-
-# import IUCN data
-# lets use Isabel's data as it includes assessments completed and waiting to be published
+# import IUCN data: lets use Isabel's data as it includes assessments completed and waiting to be published
 scleria_iucn <- read_excel("data/Scleria_Species_List_Status.xlsx") %>% dplyr::select(-Reference)
-table(scleria_iucn$scientific_name %in% LHS_means_final$scientific_name)
+table(scleria_iucn$scientific_name %in% scleria_taxa$scientific_name)
 
 # add taxonomic info and missing species
-scleria_iucn <- merge(LHS_means_final[,c('scientific_name','subgenus','section')], scleria_iucn, by='scientific_name', all.x=T)
+scleria_iucn <- merge(scleria_taxa[,c('scientific_name','subgenus','section')],
+                      scleria_iucn, by='scientific_name', all.x=T)
 scleria_iucn <- unique(scleria_iucn) # S. bulbifera is assessed under two synonyms
 scleria_iucn$IUCN_category[is.na(scleria_iucn$IUCN_category)] <- 'NE'
 
@@ -38,7 +37,8 @@ scleria_iucn$IUCN_category <- factor(scleria_iucn$IUCN_category, levels=c('NE', 
 
 # exploratory
 par(mfrow=c(1,1),mar=c(4,4,2,2))
-bb <- barplot(table(scleria_iucn$IUCN_category), ylab='No. of species', ylim=c(0,170), cex.names=0.8, cex.axis=0.8)
+bb <- barplot(table(scleria_iucn$IUCN_category), ylab='No. of species', ylim=c(0,170), cex.names=0.8, cex.axis=0.8,
+              col=c("white","grey","forestgreen","darkolivegreen1","yellow","orange2","red","black"))
 a <- as.numeric(table(scleria_iucn$IUCN_category))
 text(bb,a+10,labels=a,cex=0.8)
 
@@ -54,20 +54,21 @@ scleria_tree$tip.label <- phylogeny_tips$scientific_name[order(match(phylogeny_t
 
 
 # merge intraspecific taxa
-tip2 <- which(scleria_tree$tip.label %in% c('Scleria distans Poir.','Scleria pergracilis (Nees) Kunth'))[c(1,3)]
+dup_tip <- c('Scleria distans Poir.', 'Scleria pergracilis (Nees) Kunth', 'Scleria bulbifera Hochst. ex A.Rich.')
+tip2 <- which(scleria_tree$tip.label %in% dup_tip)[c(1,3,5)]
 scleria_tree <- drop.tip(scleria_tree, tip2)
 # three species are not correctly located
 tip2 <- which(scleria_tree$tip.label %in% c('Scleria rutenbergiana Boeckeler','Scleria williamsii Gross','Scleria gaertneri Raddi'))
 scleria_tree <- drop.tip(scleria_tree, tip2)
 
 
-par(mar=c(1,1,1,1))
-plot(scleria_tree)
-
+# par(mar=c(1,1,1,1))
+# plot(scleria_tree)
 
 
 # save elements in a list
 data_final <- list()
+data_final[['taxa']] <- scleria_taxa
 data_final[['traits']] <- LHS_means_final
 data_final[['phylogeny']] <- scleria_tree
 data_final[['assessments']] <- scleria_iucn
