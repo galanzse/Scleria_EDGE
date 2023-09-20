@@ -167,8 +167,8 @@ mean(v_ePDloss); sd(v_ePDloss) # Expected PD loss in MY for Scleria
 
 
 # extract EDGE2 values in a df to explore distributions
-EDGE2_values <- matrix(nrow=nrow(assessments), ncol=nr)
-rownames(EDGE2_values) <- assessments$scientific_name
+EDGE2_values <- matrix(nrow=nrow(l_EDGE[[1]][[1]]), ncol=nr)
+rownames(EDGE2_values) <- l_EDGE[[1]][[1]]$Species
 ED2_values <- EDGE2_values
 for (r in 1:nr) {
   edg1 <- l_EDGE[[r]][[1]] %>% dplyr::select(Species,ED,EDGE)
@@ -184,26 +184,27 @@ rownames(EDGE2_median) <- unique(assessments$section)
 ED2_median <- EDGE2_median
 for (s in 1:nrow(EDGE2_median)) {
   sp1 <- assessments$scientific_name[assessments$section==rownames(EDGE2_median)[s]]
-  sp2 <- EDGE2_values[sp1,] %>% as.vector() %>% unlist()
+  sp1 <- sp1[!is.na(sp1)]
+  sp2 <- EDGE2_values[rownames(EDGE2_values)%in%sp1,] %>% as.vector() %>% unlist()
   EDGE2_median[s,] <- boxplot.stats(as.vector(sp2))$stats
-  sp2 <- ED2_values[sp1,] %>% as.vector() %>% unlist()
+  sp2 <- ED2_values[rownames(ED2_values)%in%sp1,] %>% as.vector() %>% unlist()
   ED2_median[s,] <- boxplot.stats(as.vector(sp2))$stats
 }
 
 
-par(mfrow=c(1,1),mar=c(7,4,1,1))
-boxplot(t(EDGE2_median), col='white', las=2, cex.axis=0.8, ylab='EDGE2 score')
+par(mfrow=c(2,1),mar=c(7,4,1,1))
+boxplot(t(na.omit(EDGE2_median)), col='white', las=2, cex.axis=0.8, ylab='EDGE2 score')
 abline(h=median(EDGE2_values, na.rm=T), col='red')
 
 
 # EDGE2 lists
 source('scripts/EDGE.2.lists.R')
 
-scleria_list <- EDGE2_lists(EDGE2_values, assessments[,c('scientific_name','thr')])
+scleria_list <- EDGE2_lists(EDGE2_values, ED2_values, assessments[,c('scientific_name','thr')])
 
 scleria_list <- scleria_list %>%
   merge(assessments[,c('scientific_name','section','subgenus')], all.x=T)
 
-write.csv(scleria_list, 'results/EDGE2_list.csv')
+# write.csv(scleria_list, 'results/EDGE2_list.csv')
 
-
+table(EDGE2_list$list)

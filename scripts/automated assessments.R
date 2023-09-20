@@ -9,7 +9,7 @@ library(ConR)
 
 
 load('results/data_final.RData') # data
-
+assessments <- data_final[['assessments']]
 
 
 # ConR: remove S. lithosperma to avoid errors ####
@@ -186,20 +186,22 @@ mod_out$rf_threatened <- predict(rf_random, mod_out[,v_pred[-which(v_pred=='thre
 table(mod_out$rf_threatened)
 
 # save
-write.table(mod_out[,c('scientific_name','rf_threatened')], 'results/rf_results.txt')
-save(rf_random, file="results/rf_random.RData")
+# write.table(mod_out[,c('scientific_name','rf_threatened')], 'results/rf_results.txt')
+# save(rf_random, file="results/rf_random.RData")
 
+rf_results <- read.csv("results/rf_results.txt", sep="")
 
 
 # Model comparison ####
 
 
 # RandomForest
-confusionMatrix(data=data_ex$rf_out, reference=as.factor(data_ex$threatened))
+table(data_ex$rf_out)
+table(as.factor(data_ex$threatened), data_ex$rf_out)
 
 
 # ConR
-comp_trends <- merge(assessments[,c('scientific_name','IUCN_category')],
+comp_trends <- merge(assessments[,c('scientific_name','IUCN_category', 'subgenus', 'section')],
                      IUCN_results[,c('scientific_name','Category_CriteriaB')],
                      all.x=T) %>% subset(!(IUCN_category%in%c('DD','NE','EX')) & !(is.na(Category_CriteriaB)))
 
@@ -215,8 +217,14 @@ table(comp_trends$IUCN_category, comp_trends$Category_CriteriaB)
 
 
 # ConR vs RF
-comp_trends2 <- merge(IUCN_results[,c('scientific_name','Category_CriteriaB')],
-                     mod_out[,c('scientific_name', 'rf_threatened')], all.y=T)
+comp_trends2 <- merge(rf_results[,c('scientific_name', 'rf_threatened')],
+                      IUCN_results[,c('scientific_name','Category_CriteriaB')],
+                      by='scientific_name', all.x=T)
+comp_trends2 <- merge(comp_trends2,
+                      assessments[,c('scientific_name','section','subgenus')],
+                      by='scientific_name', all.x=T)
+
+table(comp_trends2$rf_threatened, comp_trends2$subgenus)
 
 comp_trends2$Category_CriteriaB <- as.character(comp_trends2$Category_CriteriaB)
 comp_trends2$Category_CriteriaB[comp_trends2$Category_CriteriaB%in%c('VU','EN','CR')] <- 'threatened'
@@ -226,5 +234,5 @@ table(comp_trends2$Category_CriteriaB)
 table(comp_trends2$Category_CriteriaB, comp_trends2$rf_threatened)
 
 
-# RandomForest is a much better model because it sets a greater EOO, AOO and n_locations threshold to consider species as threatened
+# RandomForest is a better model because it sets a greater EOO, AOO and n_locations threshold to consider species as threatened
 

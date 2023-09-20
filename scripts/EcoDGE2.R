@@ -4,6 +4,7 @@
 
 library(tidyverse)
 library(devtools)
+library(readxl)
 library(cluster)
 library(ape) # library(pez)
 
@@ -67,7 +68,7 @@ boxplot(log(nutlet_volume) ~ thr, data=traits)
 
 
 
-# create dendrogram with LHS traits + life form: see Griffith et al 2022 (Functional Ecology) ####
+# create 15 dendrograms with LHS traits + life form: see Griffith et al 2022 (Functional Ecology) ####
 
 v_traits <- c('life_form_simp', 'height', 'blade_area', 'nutlet_volume')
 s_traits <- traits %>% dplyr::select(all_of(v_traits))
@@ -79,12 +80,27 @@ str(s_traits)
 s_traits[,c('height', 'blade_area', 'nutlet_volume')] <- scale(s_traits[,c('height', 'blade_area', 'nutlet_volume')], center=T)
 
 # distance matrix + clustering UPGMA
-daisy.mat <- daisy(s_traits[,v_traits], metric="gower") # %>% as.dist()
-dend1 <- hclust(daisy.mat, method="average") # UPGMA
-dend1.phy <- as.phylo(dend1) # as.phylo
+dend_combn <- read_excel("results/final_lists.xlsx", sheet = "dendrogram_combn")
+
+l_dendr <- list()
+
+for (r in 1:nrow(dend_combn)) {
+  
+  # select a aprticular combination of traits
+  tr_cbmn <- dend_combn[r,] %>% t() %>% c()
+  tr_cbmn <- tr_cbmn[!is.na(tr_cbmn)]
+  
+  # calculate dendrogram
+  daisy.mat <- daisy(s_traits[,tr_cbmn], metric="gower") # %>% as.dist()
+  dend1 <- hclust(daisy.mat, method="average") # UPGMA
+  l_dendr[[r]] <- as.phylo(dend1) # as.phylo
+  
+}
 
 
-# Are phenotypes captured by the phylogeny?
+
+# Are phenotypes captured by the dendrogram?
+dend1.phy <- l_EcoDGE[[11]] # dendrogram of 4 traits
 mycat <- traits$subgenus[order(match(traits$scientific_name, dend1.phy$tip.label))]
 mycat <- factor(mycat)
 mycol <- c("brown","orange","forestgreen","blue")[mycat]
@@ -106,7 +122,7 @@ mycol <- c("forestgreen","red")[mycat]
 # run EcoDGE2 ####
 
 
-class(dend1.phy)
+class(l_dendr[[1]])
 
 # load functions from github: https://github.com/rgumbs/EDGE2/
 # source_url(url='https://raw.githubusercontent.com/rgumbs/EDGE2/main/EDGE.2.calc')
@@ -129,8 +145,12 @@ for (s in 1:nrow(spp_pext)) { # assign probability to each species x nr times
 l_EcoDGE <- list()
 nr=500
 for (r in 1:nr) {
+  
   GE2_temp <- data.frame(rownames(spp_pext), spp_pext[,r])
   colnames(GE2_temp) <- c('species','pext'); rownames(GE2_temp) <- NULL
+  
+  dend1.phy <- l_dendr[[sample(1:length(l_dendr), 1)]] # randomly select a dendrogram
+  
   l_EcoDGE[[r]] <- EDGE2_mod(dend1.phy, GE2_temp, type='ecodge')
   print(r)
 }
@@ -152,20 +172,9 @@ save(l_EcoDGE, file="results/l_EcoDGE.RData")
 load("results/l_EcoDGE.RData")
 
 
-# summary PD and ePDloss
-v_PD <- vector()
-v_ePDloss <- vector()
-for (r in 1:length(l_EcoDGE)) {
-  v_PD[r] <- l_EcoDGE[[r]][[3]][1,'PD']
-  v_ePDloss[r] <- l_EcoDGE[[r]][[3]][1,'ePDloss']
-}
-unique(v_PD)
-mean(v_ePDloss); sd(v_ePDloss) # Expected PD loss in MY for Scleria
-
-
 # extract EDGE2 values in a df to explore distributions
-EcoDGE2_values <- matrix(nrow=nrow(assessments), ncol=nr)
-rownames(EcoDGE2_values) <- assessments$scientific_name
+EcoDGE2_values <- matrix(nrow=nrow(l_EcoDGE[[1]][[1]]), ncol=nr)
+rownames(EcoDGE2_values) <- l_EDGE[[1]][[1]]$Species
 FUD_values <- EcoDGE2_values
 for (r in 1:nr) {
   edg1 <- l_EcoDGE[[r]][[1]] %>% dplyr::select(Species,ED,EDGE)
@@ -181,22 +190,23 @@ rownames(EcoDGE2_median) <- unique(assessments$section)
 ED2_median <- EcoDGE2_median
 for (s in 1:nrow(EcoDGE2_median)) {
   sp1 <- assessments$scientific_name[assessments$section==rownames(EcoDGE2_median)[s]]
-  sp2 <- EcoDGE2_values[sp1,] %>% as.vector() %>% unlist()
+  sp1 <- sp1[!is.na(sp1)]
+  sp2 <- EcoDGE2_values[rownames(EcoDGE2_values)%in%sp1,] %>% as.vector() %>% unlist()
   EcoDGE2_median[s,] <- boxplot.stats(as.vector(sp2))$stats
-  sp2 <- FUD_values[sp1,] %>% as.vector() %>% unlist()
+  sp2 <- FUD_values[rownames(FUD_values)%in%sp1,] %>% as.vector() %>% unlist()
   ED2_median[s,] <- boxplot.stats(as.vector(sp2))$stats
 }
 
 
 par(mfrow=c(1,1),mar=c(7,4,1,1))
-boxplot(t(EcoDGE2_median), col='white', las=2, cex.axis=0.8, ylab='EDGE2 score')
+boxplot(t(na.omit(EcoDGE2_median)), col='white', las=2, cex.axis=0.8, ylab='EcoDGE2 score')
 abline(h=median(EcoDGE2_values, na.rm=T), col='red')
 
 
 # EDGE2 lists
 source('scripts/EDGE.2.lists.R')
 
-scleria_list <- EDGE2_lists(EcoDGE2_values, assessments[,c('scientific_name','thr')])
+scleria_list <- EDGE2_lists(EcoDGE2_values, FUD_values, assessments[,c('scientific_name','thr')])
 
 scleria_list <- scleria_list %>%
   merge(assessments[,c('scientific_name','section','subgenus')], all.x=T)
