@@ -35,8 +35,8 @@ reorder_tree <- function(tree, ordering){
 
 
 # EcoDGE2
-tree=dend1.phy
-pext=GE2_temp
+# tree=dend1.phy
+# pext=GE2_temp
 
 
 # EDGE2 Function
@@ -47,7 +47,7 @@ EDGE2_mod <- function(tree, pext, type){
   N_species <- length(tree$tip.label)
   N_nodes <- tree$Nnode
   
-  # there is an error in the original function or somenthing weord with my phylogeny, because the total number of nodes (tip + internal) is 2*tip − 1
+  # there is an error in the original function or something weird with my phylogeny, because the total number of nodes (tip + internal) is 2*tip − 1
   # but the dendrogram is ok
   if (type=='edge') { N_tot <- N_species*2 - 1 } else {
     N_tot <- N_species + N_nodes
