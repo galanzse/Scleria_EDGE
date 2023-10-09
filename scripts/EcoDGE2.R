@@ -86,12 +86,14 @@ l_dendr <- list()
 
 for (r in 1:nrow(dend_combn)) {
   
-  # select a aprticular combination of traits
+  # select a particular combination of traits
   tr_cbmn <- dend_combn[r,] %>% t() %>% c()
   tr_cbmn <- tr_cbmn[!is.na(tr_cbmn)]
   
   # calculate dendrogram
   daisy.mat <- daisy(s_traits[,tr_cbmn], metric="gower") # %>% as.dist()
+  # type=list('factor'='life_form_simp','numeric'=c('height','blade_area','nutlet_volume'))
+  
   dend1 <- hclust(daisy.mat, method="average") # UPGMA
   l_dendr[[r]] <- as.phylo(dend1) # as.phylo
   

@@ -77,8 +77,11 @@ for (i in 1:nrow(scleria_taxa)) {
   scleria_taxa$trait[i] <- scleria_taxa$scientific_name[i] %in% LHS_means_final$scientific_name
   scleria_taxa$phylogeny[i] <- scleria_taxa$scientific_name[i] %in% scleria_tree$tip.label
   scleria_taxa$occurrence[i] <- scleria_taxa$scientific_name[i] %in% occ_scleria_filt$scientific_name
-  scleria_taxa$assessment[i] <- scleria_taxa$scientific_name[i] %in% scleria_iucn$scientific_name
+  scleria_taxa$assessment[i] <- scleria_taxa$scientific_name[i] %in% scleria_iucn$scientific_name[scleria_iucn$IUCN_category%in%c('LC','NT','VU','EN','CR','EX')]
 }
+
+# write.csv(scleria_taxa, 'results/scleria_taxa.csv')
+
 
 
 # save elements in a list
