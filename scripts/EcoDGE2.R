@@ -17,7 +17,9 @@ names(data_final)
 
 # data: add RandomForest predictions to IUCN assessments ####
 
-assessments <- data_final[['assessments']] %>% subset(!(is.na(section))) %>%
+assessments <- data_final[['assessments']] %>%
+  merge(data_final[['taxa']][,c('scientific_name','section','subgenus')]) %>%
+  subset(!(is.na(section))) %>%
   subset(scientific_name!='Scleria chevalieri J.Raynal') # remove extinct species
 
 rf_results <- read.csv("results/rf_results.txt", sep="") # import predictions
@@ -41,7 +43,7 @@ traits <- data_final[['traits']] %>% subset(scientific_name %in% assessments$sci
 assessments$scientific_name[which(!(assessments$scientific_name %in% traits$scientific_name))]
 
 # merge
-traits <- merge(assessments, traits, by=c('scientific_name', 'subgenus', 'section'))
+traits <- merge(assessments, traits, by=c('scientific_name'))
 
 # impute by section x life form means
 for (i in 1:nrow(traits)) {
@@ -55,7 +57,7 @@ for (i in 1:nrow(traits)) {
 }
 
 # S. khasiana is imputed from section data only
-traits[traits$scientific_name=='Scleria khasiana Boeckeler',c('height', 'blade_area', 'nutlet_volume')] <- traits %>% subset(section=='elatae') %>% dplyr::select(height, blade_area, nutlet_volume) %>% colMeans(na.rm=T)
+traits[traits$scientific_name=='Scleria khasiana Boeckeler',c('height', 'blade_area', 'nutlet_volume')] <- traits %>% subset(section=='Elatae') %>% dplyr::select(height, blade_area, nutlet_volume) %>% colMeans(na.rm=T)
 
 
 # explore functional differences between threaten categories #
@@ -80,7 +82,7 @@ str(s_traits)
 s_traits[,c('height', 'blade_area', 'nutlet_volume')] <- scale(s_traits[,c('height', 'blade_area', 'nutlet_volume')], center=T)
 
 # distance matrix + clustering UPGMA
-dend_combn <- read_excel("results/final_lists.xlsx", sheet = "dendrogram_combn")
+dend_combn <- read_excel("results/results.xlsx", sheet = "dendrogram_combn")
 
 l_dendr <- list()
 
@@ -91,9 +93,7 @@ for (r in 1:nrow(dend_combn)) {
   tr_cbmn <- tr_cbmn[!is.na(tr_cbmn)]
   
   # calculate dendrogram
-  daisy.mat <- daisy(s_traits[,tr_cbmn], metric="gower") # %>% as.dist()
-  # type=list('factor'='life_form_simp','numeric'=c('height','blade_area','nutlet_volume'))
-  
+  daisy.mat <- daisy(s_traits[,tr_cbmn], metric="gower")
   dend1 <- hclust(daisy.mat, method="average") # UPGMA
   l_dendr[[r]] <- as.phylo(dend1) # as.phylo
   
@@ -102,22 +102,18 @@ for (r in 1:nrow(dend_combn)) {
 
 
 # Are phenotypes captured by the dendrogram?
-dend1.phy <- l_EcoDGE[[11]] # dendrogram of 4 traits
+dend1.phy <- l_dendr[[11]] # dendrogram of 4 traits
 mycat <- traits$subgenus[order(match(traits$scientific_name, dend1.phy$tip.label))]
 mycat <- factor(mycat)
 mycol <- c("brown","orange","forestgreen","blue")[mycat]
-
-# par(mar=c(1,1,1,0))
-# plot(as.phylo(dend1.phy), tip.color=mycol, cex=0.7)
+plot(as.phylo(dend1.phy), tip.color=mycol, cex=0.7)
 
 
 # Are endangered species functionally similar?
 mycat <- traits$thr[order(match(traits$thr,dend1.phy$tip.label))]
 mycat <- factor(mycat)
 mycol <- c("forestgreen","red")[mycat]
-
-# par(mar=c(1,1,1,0))
-# plot(as.phylo(dend1.phy), tip.color=mycol, cex=0.7)
+plot(as.phylo(dend1.phy), tip.color=mycol, cex=0.7)
 
 
 

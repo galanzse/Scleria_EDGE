@@ -77,7 +77,7 @@ for (i in 1:nrow(scleria_taxa)) {
   scleria_taxa$trait[i] <- scleria_taxa$scientific_name[i] %in% LHS_means_final$scientific_name
   scleria_taxa$phylogeny[i] <- scleria_taxa$scientific_name[i] %in% scleria_tree$tip.label
   scleria_taxa$occurrence[i] <- scleria_taxa$scientific_name[i] %in% occ_scleria_filt$scientific_name
-  scleria_taxa$assessment[i] <- scleria_taxa$scientific_name[i] %in% scleria_iucn$scientific_name[scleria_iucn$IUCN_category%in%c('LC','NT','VU','EN','CR','EX')]
+  scleria_taxa$assessment[i] <- scleria_taxa$scientific_name[i] %in%  scleria_iucn$scientific_name[scleria_iucn$IUCN_category%in%c('LC','NT','VU','EN','CR','EX')]
 }
 
 # write.csv(scleria_taxa, 'results/scleria_taxa.csv')
@@ -87,10 +87,12 @@ for (i in 1:nrow(scleria_taxa)) {
 # save elements in a list
 data_final <- list()
 data_final[['taxa']] <- scleria_taxa
-data_final[['traits']] <- LHS_means_final
+data_final[['traits']] <- LHS_means_final[,c("scientific_name","life_form","life_form_simp","height","blade_area","nutlet_volume")]
 data_final[['phylogeny']] <- scleria_tree
-data_final[['assessments']] <- scleria_iucn
+data_final[['assessments']] <- scleria_iucn[,c("scientific_name", "IUCN_category" )]
 data_final[['occurrences']] <- occ_scleria_filt
 
 
 save(data_final, file="results/data_final.RData")
+
+

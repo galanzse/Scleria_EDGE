@@ -11,7 +11,9 @@ names(data_final)
 
 # data: add RandomForest predictions to IUCN assessments ####
 
-assessments <- data_final[['assessments']] %>% subset(!(is.na(section))) %>%
+assessments <- data_final[['assessments']] %>%
+  merge(data_final[['taxa']][,c('scientific_name','section')]) %>%
+  subset(!(is.na(section))) %>%
   subset(scientific_name!='Scleria chevalieri J.Raynal') # remove extinct species
 
 rf_results <- read.csv("results/rf_results.txt", sep="") # import predictions
@@ -203,8 +205,8 @@ source('scripts/EDGE.2.lists.R')
 scleria_list <- EDGE2_lists(EDGE2_values, ED2_values, assessments[,c('scientific_name','thr')])
 
 scleria_list <- scleria_list %>%
-  merge(assessments[,c('scientific_name','section','subgenus')], all.x=T)
+  merge(data_final[['taxa']][,c('scientific_name','section','subgenus')], all.x=T)
 
 # write.csv(scleria_list, 'results/EDGE2_list.csv')
 
-table(EDGE2_list$list)
+table(scleria_list$list)
