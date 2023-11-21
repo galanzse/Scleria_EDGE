@@ -76,7 +76,7 @@ Eco2_25 <- EcoDGE2_list[order(EcoDGE2_list$EcoDGE, decreasing=T)[1:25],] %>% dpl
 # scl_countries <- scl_wrld_map %>% terra::extract(p_scleria_occ) %>%
 #   dplyr::select(sovereignt, admin, geounit, subunit, name, name_long, pop_year, gdp_md, gdp_year, economy)
 # scl_countries <- cbind(scleria_occ[,c('scientific_name', 'x', 'y', 'section', 'subgenus')],
-#                        scl_countries) %>% select(scientific_name,name) %>% na.omit() %>% unique()
+#                        scl_countries) %>% dplyr::select(scientific_name,name) %>% na.omit() %>% unique()
 # colnames(scl_countries) <- c('scientific_name','country')
 
 write.table(scl_countries, 'results/scl_countries.txt')

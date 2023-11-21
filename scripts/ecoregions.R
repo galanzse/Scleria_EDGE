@@ -1,5 +1,10 @@
 
+
+# ECOREGIONS WHERE SCLERIA IS PRESENT FOLLOWING OLSON ET AL. 2001
+
+
 library(tidyverse)
+library(terra)
 
 load("C:/Users/user/OneDrive/PUBLICACIONES/SCLERIA/Scleria_EDGE/results/data_final.RData") # data
 
@@ -25,9 +30,6 @@ levels(df_ecoregions$REALM) <- c("Australasia", "Afrotropics", "IndoMalay", "Nea
 
 df_ecoregions$BIOME <- as.factor(df_ecoregions$BIOME)
 levels(df_ecoregions$BIOME) <- c("Tropical & Subtropical Moist Broadleaf Forests","Tropical & Subtropical Dry Broadleaf Forests","Tropical & Subtropical Coniferous Forests","Temperate Broadleaf & Mixed Forests","Temperate Conifer Forests","Tropical & Subtropical Grasslands, Savannas & Shrublands","Temperate Grasslands, Savannas & Shrublands","Flooded Grasslands & Savannas","Montane Grasslands & Shrublands","Deserts & Xeric Shrublands","Mangroves",NA)
-
-df_ecoregions$GBL_STAT <- as.factor(df_ecoregions$GBL_STAT)
-levels(df_ecoregions$GBL_STAT) <- c(NA,"CRITICAL OR ENDANGERED", "VULNERABLE", "RELATIVELY STABLE OR INTACT")
 
 
 # save

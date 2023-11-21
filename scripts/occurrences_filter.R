@@ -46,8 +46,8 @@ crs(pts_scleria) <- '+proj=longlat +ellps=WGS84 +towgs84=0,0,0,0,0,0,0 +no_defs'
 unique(occ_scleria$species)[!(unique(occ_scleria$species) %in% scl_countries$scientific_name)]
 
 
-MAT <- rast('C:/Users/javie/Desktop/world_rasters/wc2.1_2.5m/wc2.1_2.5m_bio_1.tif') # mean annual temperature
-AP <- rast('C:/Users/javie/Desktop/world_rasters/wc2.1_2.5m/wc2.1_2.5m_bio_12.tif') # annual precipitation
+MAT <- rast('C:/Users/user/Desktop/worldclim/wc2.1_2.5m_bio/wc2.1_2.5m_bio_1.tif') # mean annual temperature
+AP <- rast('C:/Users/user/Desktop/worldclim/wc2.1_2.5m_bio/wc2.1_2.5m_bio_12.tif') # annual precipitation
 GRD <- MAT %>% terra::crop(pts_scleria) %>% disagg(3) %>%
   terra::project('+proj=eqearth') # use equal area projection for spatial filter: 1.23km2
 
@@ -95,12 +95,19 @@ for (s in unique(occ_scleria$species)) {
 }
 
 occ_scleria_filt <- do.call(rbind, occ_scleria2) # paste list
+
+occ_scleria_filt <- occ_scleria_filt[,c('species','x','y')] # remove unnecessary variables
+
 pts_scleria_filt <- vect(occ_scleria_filt, geom=c("x","y")) # redo points dataframe
 
 length(unique(occ_scleria_filt$species))
 unique(occ_scleria$species)[!(unique(occ_scleria$species) %in% unique(occ_scleria_filt$species))] # check excluded species
 
 
+# add S. maypurensis manually
+occ_scleria_filt <- rbind(occ_scleria_filt, c('Scleria maypurensis Bauters',	'-67.716498',	'5.349977'))
+
 write.table(occ_scleria_filt, 'results/occ_scleria_filt.txt') # save results
 rm(AP, MAT, GRD, bot_countries, occ_scleria, occ_scleria2, regions, spp_temp, ss_df, s, pts_scleria)
+
 

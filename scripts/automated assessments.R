@@ -184,6 +184,7 @@ table(as.factor(data_ex$threatened), data_ex$rf_out)
 
 # ConR
 comp_trends <- merge(assessments[,c('scientific_name','IUCN_category')], IUCN_results[,c('scientific_name','Category_CriteriaB')], all.x=T) %>%
+  merge(rf_results, all.x=T)
   subset(!(IUCN_category%in%c('DD','NE','EX')) & !(is.na(Category_CriteriaB))) %>%
   subset(!(scientific_name %in% mod_out$scientific_name))
 
@@ -203,9 +204,9 @@ comp_trends
 # ConR vs RF
 comp_trends2 <- merge(rf_results[,c('scientific_name', 'rf_threatened')],
                       IUCN_results[,c('scientific_name','Category_CriteriaB')],
-                      by='scientific_name', all.x=T)
+                      by='scientific_name', all.y=T)
 comp_trends2 <- merge(comp_trends2,
-                      assessments[,c('scientific_name','IUCN_category')],
+                      data_final[['assessments']][,c('scientific_name','IUCN_category')],
                       by='scientific_name', all.x=T)
 
 # table(comp_trends2$rf_threatened, comp_trends2$subgenus) # results per subgenus
