@@ -28,6 +28,8 @@ load('results/data_final.RData')
 # lists
 EDGE2_list <- read_excel("results/results.xlsx", sheet="EDGE2_list")
 EcoDGE2_list <- read_excel("results/results.xlsx", sheet="EcoDGE2_list")
+EDGE2_list[EDGE2_list=='NA'] <- NA
+EcoDGE2_list[EcoDGE2_list=='NA'] <- NA
 
 
 # occurrences
@@ -73,13 +75,13 @@ Eco2_25 <- EcoDGE2_list[order(EcoDGE2_list$EcoDGE, decreasing=T)[1:25],] %>% dpl
 
 # countries ####
 
-# scl_countries <- scl_wrld_map %>% terra::extract(p_scleria_occ) %>%
-#   dplyr::select(sovereignt, admin, geounit, subunit, name, name_long, pop_year, gdp_md, gdp_year, economy)
-# scl_countries <- cbind(scleria_occ[,c('scientific_name', 'x', 'y', 'section', 'subgenus')],
-#                        scl_countries) %>% dplyr::select(scientific_name,name) %>% na.omit() %>% unique()
-# colnames(scl_countries) <- c('scientific_name','country')
+scl_countries <- scl_wrld_map %>% terra::extract(p_scleria_occ) %>%
+  dplyr::select(sovereignt, admin, geounit, subunit, name, name_long, pop_year, gdp_md, gdp_year, economy)
+scl_countries <- cbind(scleria_occ[,c('scientific_name', 'x', 'y', 'section', 'subgenus')],
+                       scl_countries) %>% dplyr::select(scientific_name,name) %>% na.omit() %>% unique()
+colnames(scl_countries) <- c('scientific_name','country')
 
-write.table(scl_countries, 'results/scl_countries.txt')
+# write.table(scl_countries, 'results/scl_countries.txt')
 
 
 EDGE_countries <- matrix(nrow=length(unique(scl_countries$country)), ncol=10) %>% as.data.frame()
@@ -156,8 +158,8 @@ lines(scl_wrld_map, col='grey40')
 #                         scl_ecoregions) %>% select(scientific_name, REALM, BIOME, ECO_NAME) %>%
 #   na.omit() %>% unique()
 # colnames(scl_ecoregions) <- c('scientific_name','REALM','BIOME','ECO_NAME')
-
-write.table(scl_ecoregions, 'results/scl_ecoregions.txt')
+# 
+# write.table(scl_ecoregions, 'results/scl_ecoregions.txt')
 
 
 EDGE_scl_ecor_map <- matrix(nrow=length(unique(scl_ecoregions$ECO_NAME)), ncol=10) %>% as.data.frame()
@@ -224,11 +226,11 @@ ref_rast <- rast('C:/Users/user/Desktop/worldclim/wc2.1_2.5m_elev/wc2.1_2.5m_ele
   project('+proj=eqearth')
 
 ecor_EDGE2sum <- scl_ecor_map %>% rasterize(y=ref_rast, field='EDGE2_sum')
-plot(ecor_EDGE2sum, col=rev(grDevices::heat.colors(30)), main='Cumulative EDGE2 x ecorregion')
+plot(ecor_EDGE2sum, col=rev(grDevices::heat.colors(30)), main='Cumulative EDGE2')
 lines(scl_wrld_map, col='grey40')
 
 ecor_EDGE2sum <- scl_ecor_map %>% rasterize(y=ref_rast, field='EcoDGE2_sum')
-plot(ecor_EDGE2sum, col=rev(grDevices::heat.colors(30)), main='Cumulative EcoDGE x ecorregion')
+plot(ecor_EDGE2sum, col=rev(grDevices::heat.colors(30)), main='Cumulative EcoDGE')
 lines(scl_wrld_map, col='grey40')
 
 

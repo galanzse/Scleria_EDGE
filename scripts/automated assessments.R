@@ -5,32 +5,25 @@
 
 library(tidyverse); library(terra); library(readxl)
 library(randomForest); library(caret)
-library(ConR)
-
+# library(ConR)
+# devtools::install_version("rCAT",version="0.1.6")
+library(rCAT)
 
 load('results/data_final.RData') # data
 assessments <- data_final[['assessments']]
 
 
 
-# ConR: remove S. lithosperma and S. polycarpa to avoid errors ####
-occ_iucn <- data_final[['occurrences']] %>% subset(!(scientific_name%in%c('Scleria lithosperma (L.) Sw.','Scleria polycarpa Boeckeler')))
-str(occ_iucn)
-
-IUCN_results <- IUCN.eval(DATA=occ_iucn[,c('y','x','scientific_name')],
-                          Cell_size_AOO=2, Cell_size_locations=10, Resol_sub_pop=5, SubPop=T,
-                          method_locations='fixed_grid', method.range='convex.hull', exclude.area=F,
-                          write_file_option='csv', write_results=T)
- 
-# impute S. lithosperma and S. polycarpa manually using colmaxs
-temp <- rbind(c('Scleria lithosperma (L.) Sw.','99782260','6472','1695','1147','1370','LC or NT','LC or NT B1a+B2a','LC or NT','LC or NT'),
-              c('Scleria polycarpa Boeckeler','99782260','6472','1695','1147','1370','LC or NT','LC or NT B1a+B2a','LC or NT','LC or NT'))
-colnames(temp) <- colnames(IUCN_results)
-IUCN_results <- rbind(IUCN_results, temp)
+# rCAT ####
+IUCN_results <- ConBatch(taxa=data_final[['occurrences']]$scientific_name,
+                         lat=data_final[['occurrences']]$y,
+                         long=data_final[['occurrences']]$x,
+                         cellsize=2000,
+                         project2gether=FALSE)
+colnames(IUCN_results)[1] <- 'scientific_name'
 
 # write.table(IUCN_results, 'results/IUCN_results.txt')
-IUCN_results <- read.table('results/IUCN_results.txt')
-
+IUCN_results <- read.csv("results/IUCN_results.txt", sep="")
 
 
 # RandomForest: traits, infrageneric data and coordinates ####
@@ -48,7 +41,7 @@ names(rst_predictors)[10] <- 'protected_areas'
 
 
 # retrieve variables from ConR
-predictors <- merge(predictors, IUCN_results[,c("scientific_name","EOO","AOO","Nbe_loc")], all.x=T)
+predictors <- merge(predictors, IUCN_results[,c("scientific_name","EOOkm2","AOO2km")], all.x=T)
 
 
 predictors$y_mean <- NA
@@ -62,6 +55,8 @@ predictors$AnnualPrecipitation <- NA
 predictors$PrecipitationDriesttMonth <- NA
 predictors$PrecipitationSeasonality <- NA
 predictors$prop_protectedarea <- NA
+
+temp <- predictors$scientific_name[is.na(predictors$HPD)]
 
 for (i in 1:nrow(predictors)) {
   
@@ -80,7 +75,7 @@ for (i in 1:nrow(predictors)) {
   
   # minimum human population density (HPD)
   predictors$HPD[i] <- terra::extract(rst_predictors$HPD, temp_bff) %>% group_by(ID) %>%
-    summarise(HPD=min(HPD)) %>% dplyr::select(HPD) %>% colMeans(na.rm=T)
+    summarise(HPD=min(HPD, na.rm=T)) %>% dplyr::select(HPD) %>% colMeans(na.rm=T)
 
   # human footprint
   predictors$HFP[i] <- terra::extract(rst_predictors$HFP, temp_bff) %>% group_by(ID) %>%
@@ -115,12 +110,6 @@ predictors$subgenus <- NULL
 colSums(is.na(predictors))
 
 
-# impute mins
-predictors$EOO[is.na(predictors$EOO)] <- min(predictors$EOO, na.rm=T)
-predictors$AOO[is.na(predictors$AOO)] <- min(predictors$AOO, na.rm=T)
-predictors$Nbe_loc[is.na(predictors$Nbe_loc)] <- min(predictors$Nbe_loc, na.rm=T)
-
-
 # add new variable 'threatened', see Walker et al. 2023
 predictors$threatened <- NA
 predictors$threatened[predictors$IUCN_category%in%c('LC','NT')] <- 'nonthreatened'
@@ -138,7 +127,7 @@ mod_out$threatened <- 'NE'
 nrow(mod_out)
 
 # subset to train and evaluate model
-mod_in <- predictors %>% dplyr::select(v_pred, threatened) %>% subset(!is.na(threatened))
+mod_in <- predictors %>% dplyr::select(all_of(v_pred), threatened) %>% subset(!is.na(threatened))
 
 # training
 v_ex <- sample(1:nrow(mod_in), nrow(mod_in)/5) # 20% of observations for external validation
@@ -162,7 +151,6 @@ data_ex$rf_out <- predict(rf_random, newdata=data_ex[,v_pred], type='raw')
 confusionMatrix(data=data_ex$rf_out, reference=as.factor(data_ex$threatened))
 
 # predict
-mod_out$HPD[is.na(mod_out$HPD)] <- median(mod_out$HPD, na.rm=T) # impute missing values with average
 mod_out$rf_threatened <- predict(rf_random, mod_out[,v_pred])
 table(mod_out$rf_threatened)
 
@@ -182,43 +170,80 @@ table(data_ex$rf_out)
 table(as.factor(data_ex$threatened), data_ex$rf_out)
 
 
-# ConR
-comp_trends <- merge(assessments[,c('scientific_name','IUCN_category')], IUCN_results[,c('scientific_name','Category_CriteriaB')], all.x=T) %>%
-  merge(rf_results, all.x=T)
-  subset(!(IUCN_category%in%c('DD','NE','EX')) & !(is.na(Category_CriteriaB))) %>%
+# rCAT
+comp_trends <- merge(assessments[,c('scientific_name','IUCN_category')],
+                     IUCN_results[,c('scientific_name','EOOcat','AOOcat')], all.x=T) %>%
+  merge(rf_results, all.x=T) %>%
+  subset(IUCN_category!='EX' & !(is.na(EOOcat))) %>% #
   subset(!(scientific_name %in% mod_out$scientific_name))
 
 comp_trends$IUCN_category <- as.character(comp_trends$IUCN_category)
-comp_trends$Category_CriteriaB <- as.character(comp_trends$Category_CriteriaB)
 comp_trends$IUCN_category[comp_trends$IUCN_category%in%c('VU','EN','CR')] <- 'threatened'
 comp_trends$IUCN_category[comp_trends$IUCN_category%in%c('LC','NT')] <- 'nonthreatened'
-comp_trends$Category_CriteriaB[comp_trends$Category_CriteriaB%in%c('VU','EN','CR')] <- 'threatened'
-comp_trends$Category_CriteriaB[comp_trends$Category_CriteriaB%in%c('LC or NT')] <- 'nonthreatened'
+
+comp_trends$EOOcat <- as.character(comp_trends$EOOcat)
+comp_trends$EOOcat[comp_trends$EOOcat%in%c('VU','EN','CR')] <- 'threatened'
+comp_trends$EOOcat[comp_trends$EOOcat%in%c('LC','NT')] <- 'nonthreatened'
+
+# comp_trends$AOOcat <- as.character(comp_trends$AOOcat)
+# comp_trends$AOOcat[comp_trends$AOOcat%in%c('VU','EN','CR')] <- 'threatened'
+# comp_trends$AOOcat[comp_trends$AOOcat%in%c('LC','NT')] <- 'nonthreatened'
+
 
 table(comp_trends$IUCN_category)
-table(comp_trends$IUCN_category, comp_trends$Category_CriteriaB)
+table(comp_trends$IUCN_category, comp_trends$EOOcat)
+# table(comp_trends$IUCN_category, comp_trends$AOOcat)
 
 comp_trends 
 
 
 # ConR vs RF
 comp_trends2 <- merge(rf_results[,c('scientific_name', 'rf_threatened')],
-                      IUCN_results[,c('scientific_name','Category_CriteriaB')],
+                      IUCN_results[,c('scientific_name','EOOkm2','AOO2km','EOOcat')],
                       by='scientific_name', all.y=T)
+
 comp_trends2 <- merge(comp_trends2,
                       data_final[['assessments']][,c('scientific_name','IUCN_category')],
                       by='scientific_name', all.x=T)
 
+comp_trends2$EOOcat <- as.character(comp_trends2$EOOcat)
+comp_trends2$EOOcat[comp_trends2$EOOcat%in%c('VU','EN','CR')] <- 'threatened'
+comp_trends2$EOOcat[comp_trends2$EOOcat%in%c('LC','NT')] <- 'nonthreatened'
+
+# comp_trends2$AOOcat <- as.character(comp_trends2$AOOcat)
+# comp_trends2$AOOcat[comp_trends2$AOOcat%in%c('VU','EN','CR')] <- 'threatened'
+# comp_trends2$AOOcat[comp_trends2$AOOcat%in%c('LC','NT')] <- 'nonthreatened'
+
 # table(comp_trends2$rf_threatened, comp_trends2$subgenus) # results per subgenus
 
-comp_trends2$Category_CriteriaB <- as.character(comp_trends2$Category_CriteriaB)
-comp_trends2$Category_CriteriaB[comp_trends2$Category_CriteriaB%in%c('VU','EN','CR')] <- 'threatened'
-comp_trends2$Category_CriteriaB[comp_trends2$Category_CriteriaB%in%c('LC or NT')] <- 'nonthreatened'
+comp_trends2$EOOcat <- as.character(comp_trends2$EOOcat)
+comp_trends2$EOOcat[comp_trends2$EOOcat%in%c('VU','EN','CR')] <- 'threatened'
+comp_trends2$EOOcat[comp_trends2$EOOcat%in%c('LC','NT')] <- 'nonthreatened'
 
-table(comp_trends2$Category_CriteriaB)
-table(comp_trends2$Category_CriteriaB, comp_trends2$rf_threatened)
+# comp_trends2$AOOcat <- as.character(comp_trends2$AOOcat)
+# comp_trends2$AOOcat[comp_trends2$AOOcat%in%c('VU','EN','CR')] <- 'threatened'
+# comp_trends2$AOOcat[comp_trends2$AOOcat%in%c('LC','NT')] <- 'nonthreatened'
+
+table(comp_trends2$EOOcat)
+table(comp_trends2$EOOcat, comp_trends2$rf_threatened)
 
 write.table(comp_trends2, 'results/aa_results.txt')
 
 # RandomForest is a better model because it sets a greater EOO, AOO and n_locations threshold to consider species as threatened
 
+
+# thresholds
+comp_trends3 <- comp_trends2[!is.na(comp_trends2$rf_threatened),]
+str(comp_trends3)
+comp_trends3$EOOkm2 <- as.numeric(comp_trends3$EOOkm2)
+comp_trends3$AOO2km <- as.numeric(comp_trends3$AOO2km)
+
+mean(comp_trends3$EOOkm2[comp_trends3$rf_threatened=='threatened'])
+mean(comp_trends3$AOO2km[comp_trends3$rf_threatened=='threatened'])
+mean(comp_trends3$EOOkm2[comp_trends3$rf_threatened=='nonthreatened'])
+mean(comp_trends3$AOO2km[comp_trends3$rf_threatened=='nonthreatened'])
+
+mean(comp_trends3$EOOkm2[comp_trends3$EOOcat=='threatened'])
+mean(comp_trends3$AOO2km[comp_trends3$EOOcat=='threatened'])
+mean(comp_trends3$EOOkm2[comp_trends3$EOOcat=='nonthreatened'])
+mean(comp_trends3$AOO2km[comp_trends3$EOOcat=='nonthreatened'])

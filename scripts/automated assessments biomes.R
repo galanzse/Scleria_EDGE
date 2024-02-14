@@ -6,10 +6,21 @@
 library(tidyverse)
 library(terra)
 library(ggpubr)
+library(readxl)
 
 
 # results automated assessments
-df_AA <- read.csv("results/AA_all.txt", sep="")
+comb_AA <- read_excel("results/results.xlsx", sheet = "combined_assessments")
+comb_AA <- comb_AA[,!(colnames(comb_AA)%in%c('Notes','Rcat'))]
+str(comb_AA)
+colnames(comb_AA)[1] <- 'scientific_name'
+
+comb_AA$RF[is.na(comb_AA$RF) & comb_AA$IUCN%in%c('LC','NT')] <- 'NT'
+comb_AA$RF[is.na(comb_AA$RF) & comb_AA$IUCN%in%c('CR','VU','EN')] <- 'T'
+
+comb_AA$RF[comb_AA$RF=='NT'] <- 'nonthreatened'
+comb_AA$RF[comb_AA$RF=='T'] <- 'threatened'
+
 
 
 # occurrences
@@ -26,32 +37,28 @@ df_ecoregions <- ecoregions %>%
 
 
 # merge datasets
-df_AA <- merge(df_AA, df_ecoregions) 
-df_AA2 <- merge(df_AA, data_final[['taxa']][,c('scientific_name','subgenus','section')])
-
-df_AA2$Category_CriteriaB <- NULL
-df_AA2$rf_threatened[is.na(df_AA2$rf_threatened) & df_AA2$IUCN_category%in%c('LC','NT')] <- 'nonthreatened'
-df_AA2$rf_threatened[is.na(df_AA2$rf_threatened) & df_AA2$IUCN_category%in%c('CR','VU','EN')] <- 'threatened'
-df_AA2$IUCN_category <- NULL
+comb_AA <- merge(comb_AA, df_ecoregions)
+comb_AA <- merge(comb_AA, data_final[['taxa']][,c('scientific_name','subgenus','section')])
+comb_AA$IUCN <- NULL
 
 
 # change factor levels
-df_AA2$REALM <- as.factor(df_AA2$REALM)
-levels(df_AA2$REALM) <- c("Australasia", "Afrotropics", "IndoMalay", "Nearctic", "Neotropics", "Oceania", "Palearctic")
+comb_AA$REALM <- as.factor(comb_AA$REALM)
+levels(comb_AA$REALM) <- c("Australasia", "Afrotropics", "IndoMalay", "Nearctic", "Neotropics", "Oceania", "Palearctic")
 
-df_AA2$BIOME <- as.factor(df_AA2$BIOME)
-levels(df_AA2$BIOME) <- c("Tropical & Subtropical Moist Broadleaf Forests", "Tropical & Subtropical Dry Broadleaf Forests", "Tropical & Subtropical Coniferous Forests", "Temperate Broadleaf & Mixed Forests", "Temperate Conifer Forests", "Tropical & Subtropical Grasslands, Savannas & Shrublands", "Temperate Grasslands, Savannas & Shrublands", "Flooded Grasslands & Savannas", "Montane Grasslands & Shrublands", "Deserts & Xeric Shrublands", "Mangroves", NA)
+comb_AA$BIOME <- as.factor(comb_AA$BIOME)
+levels(comb_AA$BIOME) <- c("Tropical & Subtropical Moist Broadleaf Forests", "Tropical & Subtropical Dry Broadleaf Forests", "Tropical & Subtropical Coniferous Forests", "Temperate Broadleaf & Mixed Forests", "Temperate Conifer Forests", "Tropical & Subtropical Grasslands, Savannas & Shrublands", "Temperate Grasslands, Savannas & Shrublands", "Flooded Grasslands & Savannas", "Montane Grasslands & Shrublands", "Deserts & Xeric Shrublands", "Mangroves", NA)
 
 
 
 # plots
-t1 <- df_AA2[,c('scientific_name', 'REALM', 'rf_threatened')] %>% unique() %>%
-  group_by(REALM, rf_threatened) %>% summarise(n_spp=n()) %>% na.omit()
+t1 <- comb_AA[,c('scientific_name', 'REALM', 'RF')] %>% unique() %>%
+  group_by(REALM, RF) %>% summarise(n_spp=n()) %>% na.omit()
 t1 <- rbind(t1, data.frame(REALM=c('Nearctic','Oceania','Palearctic'),
-                           rf_threatened=c('threatened','threatened','threatened'),
+                           RF=c('threatened','threatened','threatened'),
                            n_spp=c(0,0,0)))
 
-g1 <- ggplot(aes(x=REALM, y=n_spp, fill=rf_threatened), data=t1) +
+g1 <- ggplot(aes(x=REALM, y=n_spp, fill=RF), data=t1) +
   geom_bar(position="dodge", stat="identity") +
   scale_fill_manual(values=c("forestgreen","red")) +
   theme_bw() +
@@ -60,13 +67,13 @@ g1 <- ggplot(aes(x=REALM, y=n_spp, fill=rf_threatened), data=t1) +
 
 
 
-t2 <- df_AA2[,c('scientific_name', 'section', 'rf_threatened')] %>% unique() %>%
-  group_by(section, rf_threatened) %>% summarise(n_spp=n()) %>% na.omit()
-t2 <- rbind(t2, data.frame(section=c('Lithospermae','Margaleia','Melanomphalae'),
-                           rf_threatened=c('threatened','threatened','threatened'),
-                           n_spp=c(0,0,0)))
+t2 <- comb_AA[,c('scientific_name', 'section', 'RF')] %>% unique() %>%
+  group_by(section, RF) %>% summarise(n_spp=n()) %>% na.omit()
+t2 <- rbind(t2, data.frame(section=c('Lithospermae','Margaleia','Melanomphalae','Trachylomia'),
+                           RF=c('threatened','threatened','threatened','threatened'),
+                           n_spp=c(0,0,0,0)))
 
-g2 <- ggplot(aes(x=section, y=n_spp, fill=rf_threatened), data=t2) +
+g2 <- ggplot(aes(x=section, y=n_spp, fill=RF), data=t2) +
   geom_bar(position="dodge", stat="identity") +
   scale_fill_manual(values=c("forestgreen","red")) +
   theme_bw() +
